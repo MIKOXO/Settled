@@ -4,23 +4,29 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- TBD
+- Module 1 — Foundation & Scaffold (complete)
 
 ## Current Goal
 
-- TBD
+- Completed Module 1 (server scaffold). Next: Module 2
 
 ## Completed
 
-- None yet
+- Module 1 — Foundation & Scaffold (server/):
+  - `config/env.js` — env loading via dotenv, fail-fast on missing required vars
+  - `config/db.js` — Mongoose connection via MONGODB_URI
+  - `app.js` — Express app: cors, helmet, morgan, JSON parsing, health route, error middleware
+  - `server.js` — HTTP + Socket.io (no handlers yet), connects DB, listens on PORT (5000)
+  - `routes/health.js` — GET /health returns `{ status: "ok" }`
+  - Fixed package.json scripts to point at root `server.js`
 
 ## In Progress
 
-- None yet
+- None
 
 ## Next Up
 
-- TBD
+- Module 2 — Board & Participant schemas, create/join REST endpoints, invite-link + board-scoped JWT, auth/role middleware
 
 ## Open Questions
 
@@ -39,7 +45,10 @@ Update this file after every meaningful implementation change.
 - No TypeScript — plain modern JS throughout, runtime validation (Zod) carries the boundary-safety role TS would
 - Backend is strict 3-tier: Routes → Controllers → Services, sockets call the same service layer as controllers
 - Stack finalized: Redux Toolkit (frontend state), Lucide (icons), Brevo (email), Vercel (frontend deploy), Render (backend deploy)
+- Module 1: `app.js`/`server.js` at `server/` root, subfolders under `server/src/` per architecture; fixed package.json scripts to `server.js`
+- Module 1: `.env` (protected) missing `BREVO_SENDER_EMAIL`/`NOMINATIM_USER_AGENT` — env.js falls back to `FROM_EMAIL`/`EMAIL_USER` and a default user-agent instead of editing `.env`; only core vars hard-required (service creds unused until later modules)
+- Module 1: `/health` returns directly from the route, no controller/service (scaffold exception; no DB/business logic)
 
 ## Session Notes
 
-- None yet
+- Module 1 verified: server boots, connects to MongoDB, listens on 5000, `GET /health` → 200 `{"status":"ok"}`
