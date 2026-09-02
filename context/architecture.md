@@ -69,7 +69,7 @@ client/
 ## Storage Model
 
 - **MongoDB Atlas**: all structured data — Board, Participant, Option, Vote, Comment, AvailabilitySlot, Location, ParticipantLocation
-- **Backblaze B2**: binary file storage only — option photos. Never store binary content in MongoDB.
+- **Backblaze B2**: binary file storage only — option photos. Never store binary content in MongoDB. The bucket is **private** (public buckets require billing info on file, which isn't set up) — MongoDB stores the B2 object key only, never a permanent URL. The service layer generates a short-lived pre-signed GET URL (via `@aws-sdk/s3-request-presigner`) each time an option with a photo is fetched.
 
 ## Auth and Access Model
 
