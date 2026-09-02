@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Module 2 — Board (complete)
+- Module 3 — Participant & Session (complete)
 
 ## Current Goal
 
-- Completed Module 2 (Board + Participant models, REST endpoints). Next: Module 3
+- Completed Module 3 (JWT sessions, auth middleware, magic-link recovery, ownership claim). Next: Module 4 — Socket Foundation
 
 ## Completed
 
@@ -28,6 +28,16 @@ Update this file after every meaningful implementation change.
   - `routes/board.js` — POST/GET/PATCH `/api/boards[/:id]` with ObjectId validation
   - `utils/asyncHandler.js` — shared async wrapper
   - Fixed `app.js`: mount board routes at `/api` prefix; ZodError → 400
+- Module 3 — Participant & Session (server/):
+  - `models/Participant.js` — added `lastActiveAt` (Date)
+  - `utils/tokens.js` — `signSessionToken` (30d, type `session`), `signRecoveryToken` (15m, type `recovery`), `verifyToken`
+  - `utils/email.js` — `sendMagicLinkEmail` via Brevo, links to `/recover?token=...`
+  - `middleware/auth.js` — `requireAuth`, `requireOwner`
+  - `services/participantService.js` — joinBoard (FR9 dedupe), recoverRequest (no email leak), recover, claimOwnership
+  - `controllers/participantController.js` + `validators/participant.js` + `routes/participant.js`
+  - `routes/board.js` — GET gated by `requireAuth`, PATCH by `requireAuth`+`requireOwner`
+  - `controllers/boardController.js` — createBoard sets owner session cookie + fires recovery email
+  - `app.js` — added `cookie-parser`, CORS `credentials: true`, mounted participant routes
 
 ## In Progress
 
@@ -35,7 +45,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 3 — Session mechanism: JWT issuance, auth middleware, role-check middleware, session recovery (magic link), Board/Participant routes get gated
+- Module 4 — Socket Foundation: room-per-board Socket.io setup, connect/disconnect, room join on auth
 
 ## Open Questions
 
@@ -43,7 +53,8 @@ Update this file after every meaningful implementation change.
 - Owner-inactivity threshold set at 7 days by default — not yet stress-tested against real usage
 - Invite links have no expiry/revocation for MVP — accepted tradeoff, revisit if abuse becomes a problem
 - Duplicate participant joins are not prevented (email is required but unverified) — accepted tradeoff for MVP
-- Board/Participant routes (GET, PATCH, and future routes) are intentionally unauthenticated pending Module 3 — known gap, not a design choice; auth middleware will gate these in Module 3
+- Session cookies use `secure: false` in current dev config — must be `secure: true` behind HTTPS in production (already true once deployed; `PRODUCTION_REVIEW`: set secure based on NODE_ENV when env/deploy is finalized)
+- Participant emails are never exposed to other participants (NFR7) — join/recover responses only return the acting participant's own email
 
 ## Architecture Decisions
 
@@ -59,8 +70,13 @@ Update this file after every meaningful implementation change.
 - Module 1: `.env` (protected) missing `BREVO_SENDER_EMAIL`/`NOMINATIM_USER_AGENT` — env.js falls back to `FROM_EMAIL`/`EMAIL_USER` and a default user-agent instead of editing `.env`; only core vars hard-required (service creds unused until later modules)
 - Module 1: `/health` returns directly from the route, no controller/service (scaffold exception; no DB/business logic)
 - Module 2: `Participant.boardId` is not required (set after Board creation in same transaction) — circular dependency: Board needs Participant `_id` as `ownerId`, Participant needs Board `_id` as `boardId`; one side must be deferred
+- Module 3: session JWT is board-scoped; `requireAuth` relies on token scope, no per-request board re-check (NFR8 invite-link obscurity, no hardening)
+- Module 3: `sendMagicLinkEmail` is fire-and-forget — email failures never block create/join
+- Module 3: FR9 dedupe keys on a session cookie whose `boardId` matches the invite token's board; otherwise a new participant
+- Module 3: ownership claim reassigns `ownerId` and flips both roles in one service call (no transaction) — preserves exactly-one-owner invariant
 
 ## Session Notes
 
 - Module 1 verified: server boots, connects to MongoDB, listens on 5000, `GET /health` → 200 `{"status":"ok"}`
 - Module 2 verified via curl: POST /api/boards → 201 (board + ownerId + inviteUrl), GET /api/boards/:id → 200, PATCH → 200, empty PATCH → 400, invalid id → 400, nonexistent → 404
+- Module 3 verified via curl: create board sets session cookie + fires recovery email; GET with cookie → 200, without → 401; PATCH owner cookie → 200, member/absent → 403/401; join → 201 + cookie; re-join → 200 `existing:true` (no duplicate); recover-request for existing + non-existent email → same generic response (no leak); recover → 200 + fresh session cookie that works on GET; session token can't be used in recover, recovery token can't be used as session (both 401); claim-ownership: active owner → 403, after backdating `lastActiveAt` past 7 days → 200 (roles swap, board.ownerId updated, one owner remains), claim again → 403 "already the owner"
