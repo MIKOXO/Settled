@@ -1,8 +1,8 @@
-import { asyncHandler } from '../utils/asyncHandler.js';
+import { catchAsync } from '../utils/catchAsync.js';
 import { createBoardSchema, updateBoardSchema } from '../validators/board.js';
 import * as boardService from '../services/boardService.js';
 
-export const createBoard = asyncHandler(async (req, res) => {
+export const createBoard = catchAsync(async (req, res) => {
   const input = createBoardSchema.parse(req.body);
   const { board, ownerId, inviteUrl } = await boardService.createBoard(input);
   res.status(201).json({
@@ -24,7 +24,7 @@ export const createBoard = asyncHandler(async (req, res) => {
   });
 });
 
-export const getBoardById = asyncHandler(async (req, res) => {
+export const getBoardById = catchAsync(async (req, res) => {
   const board = await boardService.getBoardById(req.params.id);
   res.status(200).json({
     success: true,
@@ -41,7 +41,7 @@ export const getBoardById = asyncHandler(async (req, res) => {
   });
 });
 
-export const updateBoard = asyncHandler(async (req, res) => {
+export const updateBoard = catchAsync(async (req, res) => {
   const patch = updateBoardSchema.parse(req.body);
   const board = await boardService.updateBoard(req.params.id, patch);
   res.status(200).json({

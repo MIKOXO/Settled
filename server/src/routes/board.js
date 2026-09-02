@@ -1,16 +1,13 @@
 import { Router } from 'express';
 import mongoose from 'mongoose';
+import { createAppError } from '../utils/AppError.js';
 import * as boardController from '../controllers/boardController.js';
 
 const router = Router();
 
-const validateBoardId = (req, res, next) => {
+const validateBoardId = (req, _res, next) => {
   if (!mongoose.isValidObjectId(req.params.id)) {
-    return res.status(400).json({
-      success: false,
-      data: null,
-      error: 'Invalid board id',
-    });
+    return next(createAppError('Invalid board id', 400));
   }
   return next();
 };

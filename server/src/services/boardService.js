@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Board } from '../models/Board.js';
 import { Participant } from '../models/Participant.js';
 import { env } from '../config/env.js';
+import { createAppError } from '../utils/AppError.js';
 
 export const createBoard = async (input) => {
   const session = await mongoose.startSession();
@@ -57,9 +58,7 @@ export const createBoard = async (input) => {
 export const getBoardById = async (boardId) => {
   const board = await Board.findById(boardId);
   if (!board) {
-    const error = new Error('Board not found');
-    error.status = 404;
-    throw error;
+    throw createAppError('Board not found', 404);
   }
   return board;
 };
@@ -74,9 +73,7 @@ export const updateBoard = async (boardId, patch) => {
     runValidators: true,
   });
   if (!board) {
-    const error = new Error('Board not found');
-    error.status = 404;
-    throw error;
+    throw createAppError('Board not found', 404);
   }
   return board;
 };
