@@ -1,10 +1,31 @@
 import { catchAsync } from '../utils/catchAsync.js';
+import { signSessionToken, signRecoveryToken } from '../utils/tokens.js';
+import { sendMagicLinkEmail } from '../utils/email.js';
 import { createBoardSchema, updateBoardSchema } from '../validators/board.js';
 import * as boardService from '../services/boardService.js';
+
+const SESSION_COOKIE = 'session';
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+const setSessionCookie = (res, token) => {
+  res.cookie(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: false,
+    maxAge: THIRTY_DAYS_MS,
+  });
+};
 
 export const createBoard = catchAsync(async (req, res) => {
   const input = createBoardSchema.parse(req.body);
   const { board, ownerId, inviteUrl } = await boardService.createBoard(input);
+
+  const sessionToken = signSessionToken(ownerId, board._id, 'owner');
+  setSessionCookie(res, sessionToken);
+
+  const recoveryToken = signRecoveryToken(ownerId);
+  sendMagicLinkEmail(input.creatorEmail, recoveryToken).catch(() => {});
+
   res.status(201).json({
     success: true,
     data: {

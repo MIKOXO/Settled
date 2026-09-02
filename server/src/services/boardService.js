@@ -15,6 +15,7 @@ export const createBoard = async (input) => {
           displayName: input.creatorDisplayName,
           email: input.creatorEmail,
           role: 'owner',
+          lastActiveAt: new Date(),
         },
       ],
       { session },
