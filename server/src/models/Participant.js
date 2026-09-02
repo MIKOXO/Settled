@@ -24,6 +24,9 @@ const participantSchema = new Schema(
       default: 'member',
       required: true,
     },
+    lastActiveAt: {
+      type: Date,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
