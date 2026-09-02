@@ -5,6 +5,7 @@ import morgan from 'morgan';
 
 import { env } from './src/config/env.js';
 import healthRoutes from './src/routes/health.js';
+import boardRoutes from './src/routes/board.js';
 
 const app = express();
 
@@ -18,11 +19,12 @@ app.use(morgan('dev'));
 app.use(express.json());
 
 app.use(healthRoutes);
+app.use('/api', boardRoutes);
 
 app.use((err, _req, res, _next) => {
-  const status = err.status ?? err.statusCode ?? 500;
+  const status =
+    err.name === 'ZodError' ? 400 : (err.status ?? err.statusCode ?? 500);
   if (status >= 500) {
-    // eslint-disable-next-line no-console
     console.error(err);
   }
   res.status(status).json({
