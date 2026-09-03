@@ -8,6 +8,7 @@ import { env } from './src/config/env.js';
 import healthRoutes from './src/routes/health.js';
 import boardRoutes from './src/routes/board.js';
 import participantRoutes from './src/routes/participant.js';
+import optionRoutes from './src/routes/option.js';
 import { notFound } from './src/middleware/notFound.js';
 import { errorHandler } from './src/middleware/errorHandler.js';
 
@@ -27,6 +28,7 @@ app.use(cookieParser());
 app.use(healthRoutes);
 app.use('/api', boardRoutes);
 app.use('/api', participantRoutes);
+app.use('/api', optionRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
