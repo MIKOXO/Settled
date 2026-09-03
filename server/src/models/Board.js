@@ -31,6 +31,11 @@ const boardSchema = new Schema(
     decisionDeadline: {
       type: Date,
     },
+    optionsOwnerOnly: {
+      type: Boolean,
+      default: false,
+      required: true,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
