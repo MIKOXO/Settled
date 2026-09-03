@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Module 7 — Threads/Comments (complete)
+- Module 8 — Availability (complete)
 
 ## Current Goal
 
-- Completed Module 7 (Comment model, post + paginated list, atomic `commentCount`, `comment:added` broadcast, shared board-membership middleware). Next: Module 8 — Availability
+- Completed Module 8 (AvailabilitySlot model, per-toggle upsert, raw list endpoint, `availability:updated` broadcast). Next: Module 9 — Map & Location
 
 ## Completed
 
@@ -19,6 +19,7 @@ Update this file after every meaningful implementation change.
 - Module 5 — Options (server/): Option + Location models, B2 photo upload + signed URLs, option CRUD endpoints, photo upload (creator/owner), `optionsOwnerOnly` board setting
 - Module 6 — Voting (server/): Vote model, cast/change/remove reactions (atomic `$inc`), score + `isLeading` per request, `vote:updated` broadcast
 - Module 7 — Threads/Comments (server/): Comment model, post + cursor-paginated list, atomic `commentCount` on Option, `comment:added` broadcast
+- Module 8 — Availability (server/): AvailabilitySlot model, per-toggle upsert (date normalized to midnight UTC), raw list endpoint, `availability:updated` broadcast
 
 ## In Progress
 
@@ -26,7 +27,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 8 — Availability: AvailabilitySlot model, date grid, live aggregates (date grid)
+- Module 9 — Map & Location: Location + ParticipantLocation models, Nominatim geocoding, map pins, opt-in participant location sharing
 
 ## Open Questions
 
@@ -60,6 +61,10 @@ Update this file after every meaningful implementation change.
 - Module 6: reaction counts via Mongoose `$inc` (atomic); unique index (optionId, participantId) enforces one reaction per option
 - Module 6: `socket.io-client` used only as a dev-time verification dependency (`npm install --no-save`), not added to package.json — validates real-time behavior across two clients.
 - Module 7: `requireOptionBoardMembership` shared middleware — option-exists + participant-on-board check, replaces duplicated logic in photo (Module 5) and vote (Module 6); used by photo, vote, and comment routes
+- Module 8: availability per-toggle write (not bulk save) — each grid click upserts one slot + broadcasts live immediately
+- Module 8: `PUT /boards/:boardId/availability` uses `findOneAndUpdate` with `upsert: true` on compound unique index (boardId, participantId, date) — no duplicates on repeated calls
+- Module 8: dates normalized to midnight UTC server-side for clean comparisons; GET returns raw slot list, no server-side aggregation
+- Module 8: `availability:updated` emits only the changed slot `{ participantId, date, status }` — clients patch locally
 
 ## Session Notes
 
@@ -72,3 +77,5 @@ Update this file after every meaningful implementation change.
 - Module 6: `vote:updated` received live by two socket clients with correct counts, score, leading option (12/12)
 - Module 7: comment post increments `commentCount` atomically; cursor pagination limits thread; participant names shown, no emails; auth + validation verified via curl
 - Module 7: `comment:added` received live by two socket clients with new comment + updated count (10/10)
+- Module 8: PUT upserts correctly — flip free→busy updates same doc (no duplicate), compound unique index confirmed in MongoDB; GET returns full raw list; 400/401 validation verified (20/20)
+- Module 8: `availability:updated` received live by second socket client with correct participantId, date, status on both initial mark and flip (10/10)
