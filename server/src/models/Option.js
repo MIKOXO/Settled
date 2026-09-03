@@ -43,6 +43,11 @@ const optionSchema = new Schema(
       default: 0,
       required: true,
     },
+    commentCount: {
+      type: Number,
+      default: 0,
+      required: true,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: true },
