@@ -11,6 +11,7 @@ import participantRoutes from './src/routes/participant.js';
 import optionRoutes from './src/routes/option.js';
 import voteRoutes from './src/routes/vote.js';
 import commentRoutes from './src/routes/comment.js';
+import availabilityRoutes from './src/routes/availability.js';
 import { notFound } from './src/middleware/notFound.js';
 import { errorHandler } from './src/middleware/errorHandler.js';
 
@@ -33,6 +34,7 @@ app.use('/api', participantRoutes);
 app.use('/api', optionRoutes);
 app.use('/api', voteRoutes);
 app.use('/api', commentRoutes);
+app.use('/api', availabilityRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
