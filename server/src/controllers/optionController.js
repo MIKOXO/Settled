@@ -13,6 +13,7 @@ const optionData = (option) => ({
   locationId: option.locationId ?? null,
   likesCount: option.likesCount,
   dislikesCount: option.dislikesCount,
+  commentCount: option.commentCount,
   createdAt: option.createdAt,
   updatedAt: option.updatedAt,
 });

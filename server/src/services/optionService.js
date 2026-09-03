@@ -63,6 +63,7 @@ export const listOptionsByBoard = async (boardId, participantId) => {
         locationId: option.locationId?._id ?? null,
         likesCount: option.likesCount,
         dislikesCount: option.dislikesCount,
+        commentCount: option.commentCount,
         score,
         isLeading: leadingSet.has(option._id.toString()),
         vote: voteMap.get(option._id.toString()) ?? null,
