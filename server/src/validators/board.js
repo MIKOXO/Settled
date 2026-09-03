@@ -11,7 +11,11 @@ export const updateBoardSchema = z
   .object({
     name: z.string().trim().min(1).max(100).optional(),
     type: z.enum(['Trip', 'Dinner', 'Event', 'Custom']).optional(),
+    optionsOwnerOnly: z.boolean().optional(),
   })
-  .refine((data) => data.name !== undefined || data.type !== undefined, {
-    message: 'At least one of name or type must be provided',
-  });
+  .refine(
+    (data) => data.name !== undefined || data.type !== undefined || data.optionsOwnerOnly !== undefined,
+    {
+      message: 'At least one of name, type, or optionsOwnerOnly must be provided',
+    },
+  );
