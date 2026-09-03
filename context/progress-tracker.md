@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Module 8 — Availability (complete)
+- Server functionally complete (all modules 1–9 done); client build is next
 
 ## Current Goal
 
-- Completed Module 8 (AvailabilitySlot model, per-toggle upsert, raw list endpoint, `availability:updated` broadcast). Next: Module 9 — Map & Location
+- Completed Module 9 — Map & Location (ParticipantLocation model, participant + option pin listing, Nominatim place search proxy, `location:updated`/`location:removed` broadcasts). Backend covers all functional requirements in project-overview.md. Next: client build.
 
 ## Completed
 
@@ -20,6 +20,7 @@ Update this file after every meaningful implementation change.
 - Module 6 — Voting (server/): Vote model, cast/change/remove reactions (atomic `$inc`), score + `isLeading` per request, `vote:updated` broadcast
 - Module 7 — Threads/Comments (server/): Comment model, post + cursor-paginated list, atomic `commentCount` on Option, `comment:added` broadcast
 - Module 8 — Availability (server/): AvailabilitySlot model, per-toggle upsert (date normalized to midnight UTC), raw list endpoint, `availability:updated` broadcast
+- Module 9 — Map & Location (server/): ParticipantLocation model, participant/option pin listing, Nominatim place search proxy, `location:updated`/`location:removed` broadcasts
 
 ## In Progress
 
@@ -27,7 +28,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 9 — Map & Location: Location + ParticipantLocation models, Nominatim geocoding, map pins, opt-in participant location sharing
+- Client build: React features (board, options, voting, threads, availability, map), Redux slices, socket client wiring
 
 ## Open Questions
 
@@ -65,6 +66,11 @@ Update this file after every meaningful implementation change.
 - Module 8: `PUT /boards/:boardId/availability` uses `findOneAndUpdate` with `upsert: true` on compound unique index (boardId, participantId, date) — no duplicates on repeated calls
 - Module 8: dates normalized to midnight UTC server-side for clean comparisons; GET returns raw slot list, no server-side aggregation
 - Module 8: `availability:updated` emits only the changed slot `{ participantId, date, status }` — clients patch locally
+- Module 9: opt-in = doc existence; no separate visibility/fuzzed tier — once shared, location always exact (per finalized decision)
+- Module 9: `ParticipantLocation.participantId` is unique — one location per participant, upserted on PUT
+- Module 9: GET `/locations` returns two separate arrays (`participantLocations`, `optionLocations`) — client styles pins differently
+- Module 9: place search proxies to Nominatim with `NOMINATIM_USER_AGENT`; trims response to `{ name, lat, lng }` — Nominatim's 1 req/sec limit is an accepted MVP constraint (already logged in architecture.md); no caching/rate-limiting layer for this module
+- Module 9: `location:updated` emits full location after upsert; `location:removed` emits only `{ participantId }`
 
 ## Session Notes
 
@@ -79,3 +85,5 @@ Update this file after every meaningful implementation change.
 - Module 7: `comment:added` received live by two socket clients with new comment + updated count (10/10)
 - Module 8: PUT upserts correctly — flip free→busy updates same doc (no duplicate), compound unique index confirmed in MongoDB; GET returns full raw list; 400/401 validation verified (20/20)
 - Module 8: `availability:updated` received live by second socket client with correct participantId, date, status on both initial mark and flip (10/10)
+- Module 9: opt-in creates/updates location (no duplicate), opt-out removes it; GET returns participant + option pins correctly separated; Nominatim search returns usable `{ name, lat, lng }`; all validation + 401 guards verified (42/42)
+- Module 9: `location:updated` and `location:removed` received live on a second socket client with correct payloads, incl. re-upsert (14/14)
