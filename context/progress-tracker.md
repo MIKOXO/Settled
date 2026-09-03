@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Module 3 — Participant & Session (complete)
+- Module 4 — Socket Foundation (complete)
 
 ## Current Goal
 
-- Completed Module 3 (JWT sessions, auth middleware, magic-link recovery, ownership claim). Next: Module 4 — Socket Foundation
+- Completed Module 4 (socket auth middleware, room-per-board auto-join, disconnect handler). Next: Module 5 — Options
 
 ## Completed
 
@@ -38,6 +38,11 @@ Update this file after every meaningful implementation change.
   - `routes/board.js` — GET gated by `requireAuth`, PATCH by `requireAuth`+`requireOwner`
   - `controllers/boardController.js` — createBoard sets owner session cookie + fires recovery email
   - `app.js` — added `cookie-parser`, CORS `credentials: true`, mounted participant routes
+- Module 4 — Socket Foundation (server/):
+  - Added `cookie` package for parsing raw cookie headers during Socket.io handshake
+  - `sockets/authMiddleware.js` — `socketAuth` middleware: parses session JWT from cookie, verifies via `verifyToken`, attaches `socket.participant = { id, boardId, role }`, rejects invalid/missing/expired tokens
+  - `sockets/connectionHandler.js` — `createConnectionHandler(io)`: auto-joins socket to `board:${boardId}` room on connect, no-op disconnect handler
+  - `server.js` — wired `io.use(socketAuth)` and `io.on('connection', ...)` into existing Socket.io instance
 
 ## In Progress
 
@@ -45,7 +50,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 4 — Socket Foundation: room-per-board Socket.io setup, connect/disconnect, room join on auth
+- Module 5 — Options: create/list/edit options, photo upload, owner edit rights
 
 ## Open Questions
 
@@ -74,9 +79,12 @@ Update this file after every meaningful implementation change.
 - Module 3: `sendMagicLinkEmail` is fire-and-forget — email failures never block create/join
 - Module 3: FR9 dedupe keys on a session cookie whose `boardId` matches the invite token's board; otherwise a new participant
 - Module 3: ownership claim reassigns `ownerId` and flips both roles in one service call (no transaction) — preserves exactly-one-owner invariant
+- Module 4: `cookie` package (v1.0+) exports `parseCookie` not `parse` in ESM context — use `import * as cookie from 'cookie'` then `cookie.parseCookie()` to parse raw socket handshake cookie headers
+- Module 4: Socket.io auth rejects via `next(new Error(...))` not HTTP-style status codes — error message propagates as `connect_error` event on the client
 
 ## Session Notes
 
 - Module 1 verified: server boots, connects to MongoDB, listens on 5000, `GET /health` → 200 `{"status":"ok"}`
 - Module 2 verified via curl: POST /api/boards → 201 (board + ownerId + inviteUrl), GET /api/boards/:id → 200, PATCH → 200, empty PATCH → 400, invalid id → 400, nonexistent → 404
 - Module 3 verified via curl: create board sets session cookie + fires recovery email; GET with cookie → 200, without → 401; PATCH owner cookie → 200, member/absent → 403/401; join → 201 + cookie; re-join → 200 `existing:true` (no duplicate); recover-request for existing + non-existent email → same generic response (no leak); recover → 200 + fresh session cookie that works on GET; session token can't be used in recover, recovery token can't be used as session (both 401); claim-ownership: active owner → 403, after backdating `lastActiveAt` past 7 days → 200 (roles swap, board.ownerId updated, one owner remains), claim again → 403 "already the owner"
+- Module 4 verified via socket.io-client test: valid session cookie → connects, participant data correct, joins `board:${boardId}` room; no cookie → rejected "Authentication required"; invalid token → rejected "Invalid or expired token"; expired token → rejected; recovery token as session → rejected "Authentication required"; two sockets same board → share room (size 2); two sockets different boards → separate rooms (size 1 each)
