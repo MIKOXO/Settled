@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Module 6 — Voting (complete)
+- Module 7 — Threads/Comments (complete)
 
 ## Current Goal
 
-- Completed Module 6 (Vote model, cast/change/remove reactions, atomic `$inc` counts, score + `isLeading`, `vote:updated` socket broadcast). Next: Module 7 — Threads/Comments
+- Completed Module 7 (Comment model, post + paginated list, atomic `commentCount`, `comment:added` broadcast, shared board-membership middleware). Next: Module 8 — Availability
 
 ## Completed
 
@@ -18,6 +18,7 @@ Update this file after every meaningful implementation change.
 - Module 4 — Socket Foundation (server/): Socket.io auth middleware (JWT cookie), auto room join per board, no-op disconnect handler
 - Module 5 — Options (server/): Option + Location models, B2 photo upload + signed URLs, option CRUD endpoints, photo upload (creator/owner), `optionsOwnerOnly` board setting
 - Module 6 — Voting (server/): Vote model, cast/change/remove reactions (atomic `$inc`), score + `isLeading` per request, `vote:updated` broadcast
+- Module 7 — Threads/Comments (server/): Comment model, post + cursor-paginated list, atomic `commentCount` on Option, `comment:added` broadcast
 
 ## In Progress
 
@@ -25,8 +26,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 7 — Threads/Comments: Comment model, per-option thread, live comment additions, visible comment count
-- Module 8 — Availability (date grid)
+- Module 8 — Availability: AvailabilitySlot model, date grid, live aggregates (date grid)
 
 ## Open Questions
 
@@ -59,6 +59,7 @@ Update this file after every meaningful implementation change.
 - Module 6: `vote:updated` emitted from service layer after persistence via thin `voteEmitter.js` + `io.js` accessor — no socket logic duplication, invariant 5
 - Module 6: reaction counts via Mongoose `$inc` (atomic); unique index (optionId, participantId) enforces one reaction per option
 - Module 6: `socket.io-client` used only as a dev-time verification dependency (`npm install --no-save`), not added to package.json — validates real-time behavior across two clients.
+- Module 7: `requireOptionBoardMembership` shared middleware — option-exists + participant-on-board check, replaces duplicated logic in photo (Module 5) and vote (Module 6); used by photo, vote, and comment routes
 
 ## Session Notes
 
@@ -69,3 +70,5 @@ Update this file after every meaningful implementation change.
 - Module 5: option CRUD + photo + auth matrix verified via fetch (36/36 assertions)
 - Module 6: vote-creation-flip-no-op-remove all update `likesCount`/`dislikesCount` atomically; score + `isLeading` incl. ties verified via curl
 - Module 6: `vote:updated` received live by two socket clients with correct counts, score, leading option (12/12)
+- Module 7: comment post increments `commentCount` atomically; cursor pagination limits thread; participant names shown, no emails; auth + validation verified via curl
+- Module 7: `comment:added` received live by two socket clients with new comment + updated count (10/10)
