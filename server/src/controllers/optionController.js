@@ -56,7 +56,7 @@ export const deleteOption = catchAsync(async (req, res) => {
 });
 
 export const listOptionsByBoard = catchAsync(async (req, res) => {
-  const options = await optionService.listOptionsByBoard(req.params.boardId);
+  const options = await optionService.listOptionsByBoard(req.params.boardId, req.participant.id);
   res.status(200).json({
     success: true,
     data: { options },

@@ -1,7 +1,9 @@
 import { Option } from '../models/Option.js';
 import { Location } from '../models/Location.js';
+import { Vote } from '../models/Vote.js';
 import { uploadToB2, getSignedPhotoUrl } from '../utils/b2.js';
 import { createAppError } from '../utils/AppError.js';
+import { findLeadingOptionIds } from './voteService.js';
 
 export const createOption = async (participantId, board, input) => {
   const option = await Option.create({
@@ -29,14 +31,27 @@ export const createOption = async (participantId, board, input) => {
   return option;
 };
 
-export const listOptionsByBoard = async (boardId) => {
+export const listOptionsByBoard = async (boardId, participantId) => {
   const options = await Option.find({ boardId })
     .populate('locationId')
     .sort({ createdAt: -1 });
 
+  const optionIds = options.map((o) => o._id);
+
+  const [votes, leadingIds] = await Promise.all([
+    participantId
+      ? Vote.find({ optionId: { $in: optionIds }, participantId })
+      : Promise.resolve([]),
+    findLeadingOptionIds(boardId),
+  ]);
+
+  const voteMap = new Map(votes.map((v) => [v.optionId.toString(), v.value]));
+  const leadingSet = new Set(leadingIds);
+
   return Promise.all(
     options.map(async (option) => {
       const photoUrl = option.photoKey ? await getSignedPhotoUrl(option.photoKey) : null;
+      const score = option.likesCount - option.dislikesCount;
       return {
         id: option._id,
         boardId: option.boardId,
@@ -48,6 +63,9 @@ export const listOptionsByBoard = async (boardId) => {
         locationId: option.locationId?._id ?? null,
         likesCount: option.likesCount,
         dislikesCount: option.dislikesCount,
+        score,
+        isLeading: leadingSet.has(option._id.toString()),
+        vote: voteMap.get(option._id.toString()) ?? null,
         createdAt: option.createdAt,
         updatedAt: option.updatedAt,
         photoUrl,
