@@ -68,6 +68,7 @@ export const updateBoard = async (boardId, patch) => {
   const updates = {};
   if (patch.name !== undefined) updates.name = patch.name;
   if (patch.type !== undefined) updates.type = patch.type;
+  if (patch.optionsOwnerOnly !== undefined) updates.optionsOwnerOnly = patch.optionsOwnerOnly;
 
   const board = await Board.findByIdAndUpdate(boardId, updates, {
     returnDocument: 'after',
