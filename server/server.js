@@ -6,6 +6,7 @@ import { env } from './src/config/env.js';
 import { connectDB } from './src/config/db.js';
 import { socketAuth } from './src/sockets/authMiddleware.js';
 import { createConnectionHandler } from './src/sockets/connectionHandler.js';
+import { setIo } from './src/sockets/io.js';
 
 const start = async () => {
   const httpServer = createServer(app);
@@ -15,6 +16,8 @@ const start = async () => {
       origin: env.CLIENT_URL,
     },
   });
+
+  setIo(io);
 
   io.use(socketAuth);
   io.on('connection', createConnectionHandler(io));
