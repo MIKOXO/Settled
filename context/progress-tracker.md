@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Module 5 — Options (complete)
+- Module 6 — Voting (complete)
 
 ## Current Goal
 
-- Completed Module 5 (Option + Location models, B2 photo upload, option CRUD + REST endpoints, optionsOwnerOnly). Next: Module 6 — Voting
+- Completed Module 6 (Vote model, cast/change/remove reactions, atomic `$inc` counts, score + `isLeading`, `vote:updated` socket broadcast). Next: Module 7 — Threads/Comments
 
 ## Completed
 
@@ -17,6 +17,7 @@ Update this file after every meaningful implementation change.
 - Module 3 — Participant & Session (server/): JWT sessions, `requireAuth`/`requireOwner` middleware, joinBoard, magic-link recovery, ownership claim
 - Module 4 — Socket Foundation (server/): Socket.io auth middleware (JWT cookie), auto room join per board, no-op disconnect handler
 - Module 5 — Options (server/): Option + Location models, B2 photo upload + signed URLs, option CRUD endpoints, photo upload (creator/owner), `optionsOwnerOnly` board setting
+- Module 6 — Voting (server/): Vote model, cast/change/remove reactions (atomic `$inc`), score + `isLeading` per request, `vote:updated` broadcast
 
 ## In Progress
 
@@ -24,11 +25,12 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 6 — Voting: Vote model, cast/change reaction, score aggregation, "leading" flag
+- Module 7 — Threads/Comments: Comment model, per-option thread, live comment additions, visible comment count
+- Module 8 — Availability (date grid)
 
 ## Open Questions
 
-- Tie-break rule when two options have equal score
+- ~~Tie-break rule when two options have equal score~~ — all tied options reported as `isLeading` for MVP
 - Owner-inactivity threshold (7 days) not stress-tested
 - Invite links have no expiry/revocation for MVP
 - Duplicate participant joins not prevented (accepted tradeoff)
@@ -52,6 +54,11 @@ Update this file after every meaningful implementation change.
 - Module 5: `optionsOwnerOnly` wired into board PATCH so it's actually toggleable
 - Module 5: PATCH/DELETE option are `requireOwner` only; photo upload = creator OR owner
 - Module 5: B2 photo key overwrites on re-upload (acceptable — single photo per option MVP)
+- Module 6: `DELETE /options/:id/vote` — removes a reaction to neutral (FR11 extension, not in FR list)
+- Module 6: `score`/`isLeading` computed per request, never stored; ties all flagged leading
+- Module 6: `vote:updated` emitted from service layer after persistence via thin `voteEmitter.js` + `io.js` accessor — no socket logic duplication, invariant 5
+- Module 6: reaction counts via Mongoose `$inc` (atomic); unique index (optionId, participantId) enforces one reaction per option
+- Module 6: `socket.io-client` used only as a dev-time verification dependency (`npm install --no-save`), not added to package.json — validates real-time behavior across two clients.
 
 ## Session Notes
 
@@ -60,3 +67,5 @@ Update this file after every meaningful implementation change.
 - Module 3: join/recover/claim-ownership all verified via curl (201/200/401/403)
 - Module 4: socket auth + room join verified via socket.io-client (23/23 assertions)
 - Module 5: option CRUD + photo + auth matrix verified via fetch (36/36 assertions)
+- Module 6: vote-creation-flip-no-op-remove all update `likesCount`/`dislikesCount` atomically; score + `isLeading` incl. ties verified via curl
+- Module 6: `vote:updated` received live by two socket clients with correct counts, score, leading option (12/12)
