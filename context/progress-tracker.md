@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Server functionally complete (all modules 1–9 done); client build is next
+- Client build: Module 1 Step A complete; Module 1 Step B (Redux store, API client, socket client) next
 
 ## Current Goal
 
-- Completed Module 9 — Map & Location (ParticipantLocation model, participant + option pin listing, Nominatim place search proxy, `location:updated`/`location:removed` broadcasts). Backend covers all functional requirements in project-overview.md. Next: client build.
+- Module 1 Step A — Foundation & App Shell (design tokens, folder structure, base layout) complete. Next: Module 1 Step B — Redux store, API client, socket client.
 
 ## Completed
 
@@ -21,6 +21,7 @@ Update this file after every meaningful implementation change.
 - Module 7 — Threads/Comments (server/): Comment model, post + cursor-paginated list, atomic `commentCount` on Option, `comment:added` broadcast
 - Module 8 — Availability (server/): AvailabilitySlot model, per-toggle upsert (date normalized to midnight UTC), raw list endpoint, `availability:updated` broadcast
 - Module 9 — Map & Location (server/): ParticipantLocation model, participant/option pin listing, Nominatim place search proxy, `location:updated`/`location:removed` broadcasts
+- Module 1 Step A — Foundation & App Shell (client/): Vite dev server port 3000, folder structure (pages/, features/, components/, hooks/, services/, store/, context/, utils/), design tokens as CSS custom properties, Tailwind config wired to tokens, Layout component (sticky blurred nav, Settled logo), react-router-dom shell with placeholder route
 
 ## In Progress
 
@@ -28,7 +29,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Client build: React features (board, options, voting, threads, availability, map), Redux slices, socket client wiring
+- Module 1 Step B — Redux store, API client, socket client (client/)
 
 ## Open Questions
 
@@ -87,3 +88,4 @@ Update this file after every meaningful implementation change.
 - Module 8: `availability:updated` received live by second socket client with correct participantId, date, status on both initial mark and flip (10/10)
 - Module 9: opt-in creates/updates location (no duplicate), opt-out removes it; GET returns participant + option pins correctly separated; Nominatim search returns usable `{ name, lat, lng }`; all validation + 401 guards verified (42/42)
 - Module 9: `location:updated` and `location:removed` received live on a second socket client with correct payloads, incl. re-upsert (14/14)
+- Module 1 Step A (client): dev server on port 3000, `npm run build` passes, no hardcoded hex outside index.css tokens, dark background + coral accent logo dot visible, Sora headings + Plus Jakarta Sans body render correctly
