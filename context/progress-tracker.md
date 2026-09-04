@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client build: Module 1 Step A complete; Module 1 Step B (Redux store, API client, socket client) next
+- Client build: Module 1 complete; Module 2 (Landing Page) next
 
 ## Current Goal
 
-- Module 1 Step A — Foundation & App Shell (design tokens, folder structure, base layout) complete. Next: Module 1 Step B — Redux store, API client, socket client.
+- Module 1 — Foundation & App Shell (client/) fully complete (both steps). Next: Module 2 — Landing Page.
 
 ## Completed
 
@@ -22,6 +22,7 @@ Update this file after every meaningful implementation change.
 - Module 8 — Availability (server/): AvailabilitySlot model, per-toggle upsert (date normalized to midnight UTC), raw list endpoint, `availability:updated` broadcast
 - Module 9 — Map & Location (server/): ParticipantLocation model, participant/option pin listing, Nominatim place search proxy, `location:updated`/`location:removed` broadcasts
 - Module 1 Step A — Foundation & App Shell (client/): Vite dev server port 3000, folder structure (pages/, features/, components/, hooks/, services/, store/, context/, utils/), design tokens as CSS custom properties, Tailwind config wired to tokens, Layout component (sticky blurred nav, Settled logo), react-router-dom shell with placeholder route
+- Module 1 Step B — Foundation & App Shell (client/): `.env` with `VITE_API_URL`/`VITE_SOCKET_URL`, axios instance (`services/api.js`) with `withCredentials` + response interceptor unwrapping `{ success, data, error }`, socket.io client factory (`services/socket.js`) with `initSocket`/`getSocket`/`disconnectSocket`, `useSocket` hook with connect/disconnect lifecycle cleanup, Redux Toolkit store (`store/index.js`) with `sessionSlice` (`{ id, boardId, role, displayName }` + `setSession`/`clearSession` actions), `<Provider>` wired into `main.jsx`
 
 ## In Progress
 
@@ -29,7 +30,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 1 Step B — Redux store, API client, socket client (client/)
+- Module 2 — Landing Page (client/)
 
 ## Open Questions
 
@@ -72,6 +73,9 @@ Update this file after every meaningful implementation change.
 - Module 9: GET `/locations` returns two separate arrays (`participantLocations`, `optionLocations`) — client styles pins differently
 - Module 9: place search proxies to Nominatim with `NOMINATIM_USER_AGENT`; trims response to `{ name, lat, lng }` — Nominatim's 1 req/sec limit is an accepted MVP constraint (already logged in architecture.md); no caching/rate-limiting layer for this module
 - Module 9: `location:updated` emits full location after upsert; `location:removed` emits only `{ participantId }`
+- Module 1 Step B: `services/api.js` response interceptor returns `data.data` on `{ success, data, error }` shape; non-standard responses (e.g. `/health`) passed through as-is
+- Module 1 Step B: `sessionSlice` is the only Redux slice at launch — all other domain state (options, votes, comments, availability, locations) deferred to the module that needs it
+- Module 1 Step B: `initSocket()` does NOT auto-connect (`autoConnect: false`) — connection triggered explicitly once a session exists
 
 ## Session Notes
 
@@ -89,3 +93,4 @@ Update this file after every meaningful implementation change.
 - Module 9: opt-in creates/updates location (no duplicate), opt-out removes it; GET returns participant + option pins correctly separated; Nominatim search returns usable `{ name, lat, lng }`; all validation + 401 guards verified (42/42)
 - Module 9: `location:updated` and `location:removed` received live on a second socket client with correct payloads, incl. re-upsert (14/14)
 - Module 1 Step A (client): dev server on port 3000, `npm run build` passes, no hardcoded hex outside index.css tokens, dark background + coral accent logo dot visible, Sora headings + Plus Jakarta Sans body render correctly
+- Module 1 Step B (client): `npm run build` passes, server `/health` responds with `{"status":"ok"}`, CORS + credentials confirmed (`Access-Control-Allow-Origin: http://localhost:3000`, `Access-Control-Allow-Credentials: true`), Redux store initializes with session slice, Provider wired into main.jsx
