@@ -1,3 +1,24 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Plus+Jakarta+Sans:wght@400;500;600&family=Sora:wght@600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+:root {
+  --bg-base: #171310;
+  --bg-surface: #221C17;
+  --bg-surface-2: #2B221B;
+  --text-primary: #F5F1E8;
+  --text-muted: #B8A99A;
+  --accent-primary: #FF6B4A;
+  --accent-secondary: #F4B942;
+  --border-default: rgba(245, 241, 232, 0.12);
+  --state-error: #E5484D;
+  --state-success: #7FD8BE;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
