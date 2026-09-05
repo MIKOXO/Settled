@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client build: Module 1 complete; Module 2 (Landing Page) next
+- Client build: Module 2 complete; Module 3 (Board Creation & Join) next
 
 ## Current Goal
 
-- Module 1 — Foundation & App Shell (client/) fully complete (both steps). Next: Module 2 — Landing Page.
+- Module 2 — Landing Page (client/) complete. Next: Module 3 — Board Creation & Join.
 
 ## Completed
 
@@ -23,6 +23,7 @@ Update this file after every meaningful implementation change.
 - Module 9 — Map & Location (server/): ParticipantLocation model, participant/option pin listing, Nominatim place search proxy, `location:updated`/`location:removed` broadcasts
 - Module 1 Step A — Foundation & App Shell (client/): Vite dev server port 3000, folder structure (pages/, features/, components/, hooks/, services/, store/, context/, utils/), design tokens as CSS custom properties, Tailwind config wired to tokens, Layout component (sticky blurred nav, Settled logo), react-router-dom shell with placeholder route
 - Module 1 Step B — Foundation & App Shell (client/): `.env` with `VITE_API_URL`/`VITE_SOCKET_URL`, axios instance (`services/api.js`) with `withCredentials` + response interceptor unwrapping `{ success, data, error }`, socket.io client factory (`services/socket.js`) with `initSocket`/`getSocket`/`disconnectSocket`, `useSocket` hook with connect/disconnect lifecycle cleanup, Redux Toolkit store (`store/index.js`) with `sessionSlice` (`{ id, boardId, role, displayName }` + `setSession`/`clearSession` actions), `<Provider>` wired into `main.jsx`
+- Module 2 — Landing Page (client/): `pages/Landing.jsx` composes `features/landing/` sections (Nav, Hero + live board preview, StatStrip, HowItWorks, Features, Cta, Footer); Framer Motion reveals vary by section; `prefers-reduced-motion` respected
 
 ## In Progress
 
@@ -30,7 +31,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 2 — Landing Page (client/)
+- Module 3 — Board Creation & Join (client/)
 
 ## Open Questions
 
@@ -76,6 +77,7 @@ Update this file after every meaningful implementation change.
 - Module 1 Step B: `services/api.js` response interceptor returns `data.data` on `{ success, data, error }` shape; non-standard responses (e.g. `/health`) passed through as-is
 - Module 1 Step B: `sessionSlice` is the only Redux slice at launch — all other domain state (options, votes, comments, availability, locations) deferred to the module that needs it
 - Module 1 Step B: `initSocket()` does NOT auto-connect (`autoConnect: false`) — connection triggered explicitly once a session exists
+- Module 2: Hero live mock preview is a Remotion-swap placeholder — isolated in a dedicated preview slot (`hero-preview`) so a future `<video>` or Remotion export can replace `LiveBoardPreview` without restructuring the hero layout
 
 ## Session Notes
 
@@ -94,3 +96,6 @@ Update this file after every meaningful implementation change.
 - Module 9: `location:updated` and `location:removed` received live on a second socket client with correct payloads, incl. re-upsert (14/14)
 - Module 1 Step A (client): dev server on port 3000, `npm run build` passes, no hardcoded hex outside index.css tokens, dark background + coral accent logo dot visible, Sora headings + Plus Jakarta Sans body render correctly
 - Module 1 Step B (client): `npm run build` passes, server `/health` responds with `{"status":"ok"}`, CORS + credentials confirmed (`Access-Control-Allow-Origin: http://localhost:3000`, `Access-Control-Allow-Credentials: true`), Redux store initializes with session slice, Provider wired into main.jsx
+- Module 2 (client): landing sections render without icon-card grids; hero preview re-ranks with spring layout; CTA routes to `/create`
+- Module 2 Enhancement (client): Hero redesigned with responsive 2-column layout (CTA above the fold, trust badges, zero text-clipping); LiveBoardPreview enhanced with interactive 👍/👎 user voting, live reaction counts, leading indicator, and participant avatars; HowItWorks revamped into an editorial horizontal process pipeline (no icon-card grids, connected track nodes, prominent numerals, clean typography)
+- Module 2 Multi-View Preview (client): LiveBoardPreview now features interactive switching across all 3 primary board views (Ranked Options, Interactive Map with pins & opt-in location, and Dates availability matrix with interactive toggle); supports both manual tab selection and automated preview tour cycling
