@@ -21,4 +21,5 @@ body {
   background-color: var(--bg-base);
   color: var(--text-primary);
   font-family: 'Plus Jakarta Sans', sans-serif;
+  overflow-x: hidden;
 }
