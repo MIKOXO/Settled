@@ -11,25 +11,12 @@ const Hero = () => {
       <div className="grid items-center gap-10 lg:grid-cols-12 lg:gap-8 xl:gap-12">
         {/* Left Column: Value Proposition & CTA */}
         <div className="flex flex-col lg:col-span-6 xl:col-span-5">
-          {/* Eyebrow badge */}
-          <motion.div
-            initial={reduceMotion ? false : { opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-            className="inline-flex w-fit items-center gap-2 rounded-btn border border-border bg-surface px-3 py-1.5"
-          >
-            <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
-            <span className="font-sans text-xs font-medium text-text-muted">
-              No account required to vote
-            </span>
-          </motion.div>
-
           {/* Main Headline */}
           <motion.h1
             initial={reduceMotion ? false : { opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-4 font-heading text-4xl font-bold leading-[1.08] text-text-primary sm:text-5xl xl:text-6xl"
+            className="font-heading text-4xl font-bold leading-[1.08] text-text-primary sm:text-5xl xl:text-6xl"
           >
             Stop deciding in group chats.
           </motion.h1>
