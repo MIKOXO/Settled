@@ -6,6 +6,25 @@ import { sendMagicLinkEmail } from '../utils/email.js';
 
 const INACTIVITY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
 
+export const getMe = async (participantId) => {
+  const participant = await Participant.findById(participantId)
+    .select('displayName email role boardId lastActiveAt createdAt')
+    .lean();
+
+  if (!participant) {
+    throw createAppError('Participant not found', 404);
+  }
+
+  let board = null;
+  if (participant.boardId) {
+    board = await Board.findById(participant.boardId)
+      .select('name type status')
+      .lean();
+  }
+
+  return { participant, board };
+};
+
 export const joinBoard = async (inviteToken, input, existingParticipantId = null) => {
   const board = await Board.findOne({ inviteToken });
   if (!board) {

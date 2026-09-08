@@ -13,6 +13,7 @@ const validateBoardId = (req, _res, next) => {
   return next();
 };
 
+router.get('/participants/me', requireAuth, participantController.getMe);
 router.post('/boards/:inviteToken/join', participantController.joinBoard);
 router.post('/participants/recover-request', participantController.recoverRequest);
 router.post('/participants/recover', participantController.recover);

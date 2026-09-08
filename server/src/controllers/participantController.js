@@ -15,6 +15,24 @@ const setSessionCookie = (res, token) => {
   });
 };
 
+export const getMe = catchAsync(async (req, res) => {
+  const { participant, board } = await participantService.getMe(req.participant.id);
+  res.status(200).json({
+    success: true,
+    data: {
+      participant: {
+        id: participant._id,
+        displayName: participant.displayName,
+        role: participant.role,
+      },
+      board: board
+        ? { id: board._id, name: board.name, type: board.type ?? null, status: board.status }
+        : null,
+    },
+    error: null,
+  });
+});
+
 const participantData = (participant) => ({
   id: participant._id,
   displayName: participant.displayName,
