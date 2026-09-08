@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client build: Module 2 complete; Module 3 (Board Creation & Join) next
+- Client build: Module 3 complete; Module 4 (Board Shell & Options List) next
 
 ## Current Goal
 
-- Module 2 — Landing Page (client/) complete. Next: Module 3 — Board Creation & Join.
+- Module 3 — Board Creation & Join (client/) complete. Next: Module 4 — Board Shell & Options List.
 
 ## Completed
 
@@ -23,7 +23,9 @@ Update this file after every meaningful implementation change.
 - Module 9 — Map & Location (server/): ParticipantLocation model, participant/option pin listing, Nominatim place search proxy, `location:updated`/`location:removed` broadcasts
 - Module 1 Step A — Foundation & App Shell (client/): Vite dev server port 3000, folder structure (pages/, features/, components/, hooks/, services/, store/, context/, utils/), design tokens as CSS custom properties, Tailwind config wired to tokens, Layout component (sticky blurred nav, Settled logo), react-router-dom shell with placeholder route
 - Module 1 Step B — Foundation & App Shell (client/): `.env` with `VITE_API_URL`/`VITE_SOCKET_URL`, axios instance (`services/api.js`) with `withCredentials` + response interceptor unwrapping `{ success, data, error }`, socket.io client factory (`services/socket.js`) with `initSocket`/`getSocket`/`disconnectSocket`, `useSocket` hook with connect/disconnect lifecycle cleanup, Redux Toolkit store (`store/index.js`) with `sessionSlice` (`{ id, boardId, role, displayName }` + `setSession`/`clearSession` actions), `<Provider>` wired into `main.jsx`
+- Module 3 (server) addition — `GET /api/participants/me`: returns current participant `{ id, displayName, role }` + board summary `{ id, name, type, status }` when session cookie is valid; 401 via `requireAuth` otherwise. Reuses existing Participant model, no new models.
 - Module 2 — Landing Page (client/): `pages/Landing.jsx` composes `features/landing/` sections (Nav, Hero + live board preview, StatStrip, HowItWorks, Features, Cta, Footer); Framer Motion reveals vary by section; `prefers-reduced-motion` respected
+- Module 3 — Board Creation & Join (client/): `services/board.js` (createBoard/joinBoard/getMe/recoverRequest/recover); `features/board/` (CreateBoardForm, ShareInvite with copy-to-clipboard, JoinBoardForm, BoardPlaceholder, RecoverAccessForm, RecoverConfirmPage); `pages/` (CreateBoardPage, ShareInvitePage, JoinBoardPage, BoardPage, RecoverRequestPage, RecoverConfirmRoute); routes `/create`, `/share/:inviteToken`, `/join/:inviteToken`, `/board/:boardId`, `/recover`, `/recover/confirm`; all screens populate `sessionSlice` and cookie from the API response
 
 ## In Progress
 
@@ -31,7 +33,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 3 — Board Creation & Join (client/)
+- Module 4 — Board Shell & Options List (client/)
 
 ## Open Questions
 
@@ -78,6 +80,11 @@ Update this file after every meaningful implementation change.
 - Module 1 Step B: `sessionSlice` is the only Redux slice at launch — all other domain state (options, votes, comments, availability, locations) deferred to the module that needs it
 - Module 1 Step B: `initSocket()` does NOT auto-connect (`autoConnect: false`) — connection triggered explicitly once a session exists
 - Module 2: Hero live mock preview is a Remotion-swap placeholder — isolated in a dedicated preview slot (`hero-preview`) so a future `<video>` or Remotion export can replace `LiveBoardPreview` without restructuring the hero layout
+- Module 3 (server): `GET /participants/me` returns participant + board summary in one response; board is `null` if participant has no board yet — single route, no new model
+- Module 3 (client): `JoinBoardPage` always shows the join form for a different-board session — the `/me` check only pre-populates board name; a session matching the SAME board skips the form (handled by comparing returned board id against the route's board, but for MVP the join form is shown universally since joining the same board with the same cookie just returns the existing participant server-side)
+- Module 3 (client): `ShareInvite` uses `window.location.origin` to build the invite URL so it always points at the live client origin
+- Module 3 (client): `RecoverAccessForm` always shows the same generic success message regardless of the server response (matches server's non-revealing behavior)
+- Board type: `typeLabel` field added to Board model + validators (create/PATCH) — only allowed when `type === 'Custom'`, so the creator can give custom boards a specific label (e.g. "Duel Night"); returned as `typeLabel` in all board responses
 
 ## Session Notes
 
@@ -99,3 +106,7 @@ Update this file after every meaningful implementation change.
 - Module 2 (client): landing sections render without icon-card grids; hero preview re-ranks with spring layout; CTA routes to `/create`
 - Module 2 Enhancement (client): Hero redesigned with responsive 2-column layout (CTA above the fold, trust badges, zero text-clipping); LiveBoardPreview enhanced with interactive 👍/👎 user voting, live reaction counts, leading indicator, and participant avatars; HowItWorks revamped into an editorial horizontal process pipeline (no icon-card grids, connected track nodes, prominent numerals, clean typography)
 - Module 2 Multi-View Preview (client): LiveBoardPreview now features interactive switching across all 3 primary board views (Ranked Options, Interactive Map with pins & opt-in location, and Dates availability matrix with interactive toggle); supports both manual tab selection and automated preview tour cycling
+- Module 3 (server) addition: `GET /participants/me` verified via curl — valid session cookie → 200 with `{ participant: { id, displayName, role }, board: { id, name, type, status } }`; no cookie → 401 `Authentication required`; garbage cookie → 401 `Invalid or expired token`
+- Module 3 (client): `npm run build` passes (all new routes code-split via React.lazy); `npm run lint` clean for new files
+- Module 3 enhancement (client): CreateBoardForm redesigned — compact single-card layout, floating labels that straddle the top border on focus/active, icons aligned right, orange-only focus border (rings removed), custom themed `Select` listbox in `components/Select.jsx` replacing the native select; Custom type reveals a required `typeLabel` input; `typeLabel` persisted server-side and verified via curl (create Custom + label → 201 with `typeLabel`; label without Custom type → 400)
+- Module 3 enhancement (client): reusable error system — `hooks/useFormErrors.js` (block + per-field errors with auto-dismiss timeout), `components/ErrorBanner.jsx` (top-of-form, subtle `bg-error/10` + `border-error/30`), `components/FieldError.jsx` (inline under the specific input, `text-error`); `services/api.js` now preserves server Zod `issues` (`{ path, message }`) on rejects so forms map validation errors to the right fields; wired into CreateBoardForm (server field map: `name`/`typeLabel`/`creatorDisplayName`/`creatorEmail` → local fields) and JoinBoardForm; JoinBoardForm also fixed to orange-only focus border
