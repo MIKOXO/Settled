@@ -17,12 +17,15 @@ api.interceptors.response.use(
     return data;
   },
   (error) => {
-    const message =
-      error.response?.data?.error?.message ||
-      error.response?.data?.error ||
-      error.message ||
-      'Request failed';
-    return Promise.reject({ message });
+    const apiError = error.response?.data?.error;
+    return Promise.reject({
+      message:
+        (apiError && typeof apiError === 'object' ? apiError.message : apiError) ||
+        error.message ||
+        'Request failed',
+      issues: Array.isArray(apiError?.issues) ? apiError.issues : null,
+      status: error.response?.status ?? null,
+    });
   },
 );
 
