@@ -46,6 +46,7 @@ const boardData = (board) => ({
   id: board._id,
   name: board.name,
   type: board.type ?? null,
+  typeLabel: board.typeLabel ?? null,
   status: board.status,
   decisionDeadline: board.decisionDeadline ?? null,
 });
