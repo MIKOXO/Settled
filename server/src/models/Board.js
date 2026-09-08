@@ -12,6 +12,11 @@ const boardSchema = new Schema(
       type: String,
       enum: ['Trip', 'Dinner', 'Event', 'Custom'],
     },
+    typeLabel: {
+      type: String,
+      trim: true,
+      maxlength: 50,
+    },
     status: {
       type: String,
       enum: ['open', 'decided'],
