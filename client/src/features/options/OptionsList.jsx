@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Circle, MessageSquare, Trophy, ExternalLink } from 'lucide-react';
+import { ChevronDown, Circle, MessageSquare, Trophy, ExternalLink } from 'lucide-react';
 import VoteButtons from '../voting/VoteButtons';
+import CommentThread from '../threads/CommentThread';
 
 const OptionCard = ({ option }) => {
   const {
@@ -12,6 +14,7 @@ const OptionCard = ({ option }) => {
     isLeading,
     commentCount,
   } = option;
+  const [threadOpen, setThreadOpen] = useState(false);
 
   return (
     <article
@@ -54,10 +57,20 @@ const OptionCard = ({ option }) => {
               </a>
             )}
 
-            <span className="flex items-center gap-1.5 font-sans text-sm text-text-muted">
+            <button
+              type="button"
+              onClick={() => setThreadOpen((wasOpen) => !wasOpen)}
+              aria-expanded={threadOpen}
+              className="flex items-center gap-1.5 font-sans text-sm text-text-muted transition-colors duration-200 hover:text-text-primary"
+            >
               <MessageSquare className="h-3.5 w-3.5" />
               {commentCount}
-            </span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                  threadOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
@@ -81,6 +94,8 @@ const OptionCard = ({ option }) => {
           </div>
         </div>
       </div>
+
+      <CommentThread option={option} open={threadOpen} />
     </article>
   );
 };

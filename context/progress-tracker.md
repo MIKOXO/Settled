@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client build: Module 5 complete; Module 6 (Threads/Comments) next
+- Client build: Module 6 complete; Module 7 (Availability Grid) next
 
 ## Current Goal
 
-- Module 5 — Voting (client/) complete. Next: Module 6 — Threads/Comments (client/).
+- Module 6 — Threads/Comments (client/) complete. Next: Module 7 — Availability Grid (client/).
 
 ## Completed
 
@@ -28,6 +28,7 @@ Update this file after every meaningful implementation change.
 - Module 3 — Board Creation & Join (client/): `services/board.js` (createBoard/joinBoard/getMe/recoverRequest/recover); `features/board/` (CreateBoardForm, ShareInvite with copy-to-clipboard, JoinBoardForm, BoardPlaceholder, RecoverAccessForm, RecoverConfirmPage); `pages/` (CreateBoardPage, ShareInvitePage, JoinBoardPage, BoardPage, RecoverRequestPage, RecoverConfirmRoute); routes `/create`, `/share/:inviteToken`, `/join/:inviteToken`, `/board/:boardId`, `/recover`, `/recover/confirm`; all screens populate `sessionSlice` and cookie from the API response
 - Module 4 — Board Shell & Options List (client/): `store/boardSlice.js` (board/options/status + setBoard/setOptions/addOption/setStatus/resetBoard); `services/options.js` (fetchOptions/createOption/uploadOptionPhoto); `services/board.js` fetchBoard; `pages/BoardPage.jsx` replaces placeholder (parallel fetch board+options+me, socket connect on mount, disconnect on unmount); `features/board/BoardHeader.jsx`; `features/options/OptionsList.jsx` (cards: title/notes/link/photo/score/isLeading/commentCount, display-only, empty state); `features/options/ProposeOptionForm.jsx` (create → upload photo → addOption; `optionsOwnerOnly` gate; no location field)
 - Module 5 — Voting (client/): `services/votes.js` (castVote/removeVote thin wrappers); `store/boardSlice.js` `applyVoteUpdate` reducer (authoritative replace of likesCount/dislikesCount/score, syncs `isLeading` across ALL options from `leadingOptionIds`); `hooks/useBoardSocket.js` (subscribes `vote:updated` → applyVoteUpdate, unsubscribes on unmount, called from BoardPage beside existing useSocket lifecycle); `features/voting/VoteButtons.jsx` (optimistic like/dislike, toggle-to-remove, like↔dislike flip, snapshot rollback + brief error state on API failure, pending guard against double-click); wired into OptionsList next to each option's score; leading-option highlight retained/strengthened (mustard border + Trophy badge)
+- Module 6 — Threads/Comments (client/): `services/comments.js` (fetchComments with optional limit/cursor, postComment); `store/boardSlice.js` comments keyed per option (`{ items, hasMore, status, nextCursor }`) + `setComments`/`appendComments`/`addComment` reducers; `hooks/useBoardSocket.js` extended with `comment:added` → addComment (same hook, same lifecycle, one more event); `features/threads/CommentThread.jsx` (collapsed by default, fetch-on-first-open only, comment list with display name + relative timestamp, explicit "load older comments" cursor pagination, loading/failed/empty states); `features/threads/CommentForm.jsx` (post → `addComment` locally with the response, no optimistic prepend since the response IS the reconciled state, inline error on failure); OptionsList comment count is now a toggle button (chevron rotates), message count `font-mono`, `state-success` untouched
 
 ## In Progress
 
@@ -35,7 +36,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 6 — Threads/Comments (client/)
+- Module 7 — Availability Grid (client/)
 
 ## Open Questions
 
@@ -98,6 +99,10 @@ Update this file after every meaningful implementation change.
 - Module 5 (client): leading-option highlight approach = STATIC (mustard `border` + Trophy badge), not a Framer Motion list reorder — the server owns option ordering (`createdAt` desc) and client-side score re-sorting isn't defined anywhere in the specs; reordering would drift from the server's list contract. Real-time re-rank deferred until score ordering is specced
 - Module 5 (client): the participant's own `vote` lives on each option object in Redux; optimistic apply / rollback / API reconcile pass an optional `vote` through `applyVoteUpdate` (the socket broadcast carries no `vote`, so it's left intact there)
 - Module 5 (client): `VoteButtons` uses a `pending` guard — buttons disabled while a request is in flight to prevent double-apply/out-of-order races (also satisfies the code-standards debounce note); rollback restores the exact pre-click counts/vote snapshot, and `isLeading` is never touched optimistically so an in-flight authoritative broadcast is preserved
+- Module 6 (client): `addComment` SETS `commentCount` from the authoritative payload (POST response and `comment:added` broadcast) instead of incrementing — same rationale as Module 5: the client receives its own broadcast back, so incrementing would double-count. The task wording said "bumps"; the reducer falls back to increment only if the payload omits the count
+- Module 6 (client): `addComment` dedupes by comment id when prepending — the posting client applies the POST response locally, then its own `comment:added` echo arrives; without the id check the same comment would render twice
+- Module 6 (client): store thread shape is `{ items, hasMore, status, nextCursor }` — `nextCursor` is an extension of the specced `{ items, hasMore, status }` shape required for the "load more" pagination control; `appendComments` merges older pages at the tail (newest stays at index 0), `hasMore`/`nextCursor` come from the latest page only
+- Module 6 (client): `CommentThread` fetches on first expand (`loadedRef`), never on form interactions; a thread left unopened still gets its comment count synced because `addComment` updates `options[].commentCount` directly from the broadcast — collapsed card count stays live with zero thread state
 
 ## Session Notes
 
@@ -128,3 +133,4 @@ Update this file after every meaningful implementation change.
 - Module 4 (client): `optionsOwnerOnly` gate verified in-browser — member sees owner-only note, owner sees form (via `getMe` hydration); server 403s member create
 - Module 4 (client): socket connects on entering the board page (`/socket.io/` 200s in network tab); disconnect on unmount
 - Module 5 (client): `applyVoteUpdate` semantics verified at reducer level (replace-not-increment, all-option isLeading sync, snapshot rollback, unknown-id no-op); `vote:updated` verified live across two socket clients — like propagates counts/score to the remote client, same-reaction second click removes (like 1→0), like→dislike flip updates both counts (0/1), leading moves live incl. tie (both leading) and flip-to-single-leader, own broadcast received, enriched-list `vote` field matches the participant's current vote (`null`/`like`/`dislike`); forced API failures rejected (invalid value 400, bogus option id 404) so optimistic rollback runs (23/23 assertions); `npm run build` + `npm run lint` pass
+- Module 6 (client): reducer semantics verified — setComments stores page+cursor, appendComments merges at tail keeping newest-first, addComment prepends + sets authoritative commentCount (no increment), own echo dedupes (no double comment/render, no double count), unopened-thread entry created idle, collapsed-card count updated from payload; live two-client — `comment:added` received with body + display name + authoritative count (no email), list endpoint count synced, pagination 20+5 with non-overlapping pages + nextCursor, both pages merged by the real reducers to 25, latest comment lands at top, blank comment → 400 so the form shows its error (30/30 assertions); `npm run build` + `npm run lint` pass
