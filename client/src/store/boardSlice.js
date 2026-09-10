@@ -5,6 +5,7 @@ const boardSlice = createSlice({
   initialState: {
     board: null,
     options: [],
+    comments: {},
     status: 'idle',
   },
   reducers: {
@@ -40,12 +41,64 @@ const boardSlice = createSlice({
         }
       }
     },
+    setComments: (state, action) => {
+      const {
+        optionId,
+        items,
+        hasMore,
+        status = 'succeeded',
+        nextCursor,
+      } = action.payload;
+      state.comments[optionId] = {
+        items,
+        hasMore,
+        status,
+        nextCursor: nextCursor ?? null,
+      };
+    },
+    appendComments: (state, action) => {
+      const { optionId, items, hasMore, nextCursor } = action.payload;
+      const thread = state.comments[optionId] ?? {
+        items: [],
+        hasMore: false,
+        status: 'idle',
+        nextCursor: null,
+      };
+      thread.items.push(...items);
+      thread.hasMore = hasMore;
+      thread.nextCursor = nextCursor ?? null;
+      thread.status = 'succeeded';
+      state.comments[optionId] = thread;
+    },
+    addComment: (state, action) => {
+      const { optionId, comment, commentCount } = action.payload;
+      const thread = state.comments[optionId];
+
+      if (thread) {
+        const exists = thread.items.some((item) => item.id === comment.id);
+        if (!exists) thread.items.unshift(comment);
+      } else {
+        state.comments[optionId] = {
+          items: [comment],
+          hasMore: false,
+          status: 'idle',
+          nextCursor: null,
+        };
+      }
+
+      const option = state.options.find((o) => o.id === optionId);
+      if (option) {
+        option.commentCount =
+          commentCount !== undefined ? commentCount : option.commentCount + 1;
+      }
+    },
     setStatus: (state, action) => {
       state.status = action.payload;
     },
     resetBoard: () => ({
       board: null,
       options: [],
+      comments: {},
       status: 'idle',
     }),
   },
@@ -56,6 +109,9 @@ export const {
   setOptions,
   addOption,
   applyVoteUpdate,
+  setComments,
+  appendComments,
+  addComment,
   setStatus,
   resetBoard,
 } = boardSlice.actions;
