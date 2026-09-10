@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client build: Module 3 complete; Module 4 (Board Shell & Options List) next
+- Client build: Module 4 complete; Module 5 (Voting) next
 
 ## Current Goal
 
-- Module 3 — Board Creation & Join (client/) complete. Next: Module 4 — Board Shell & Options List.
+- Module 4 — Board Shell & Options List (client/) complete. Next: Module 5 — Voting (client/).
 
 ## Completed
 
@@ -26,6 +26,7 @@ Update this file after every meaningful implementation change.
 - Module 3 (server) addition — `GET /api/participants/me`: returns current participant `{ id, displayName, role }` + board summary `{ id, name, type, status }` when session cookie is valid; 401 via `requireAuth` otherwise. Reuses existing Participant model, no new models.
 - Module 2 — Landing Page (client/): `pages/Landing.jsx` composes `features/landing/` sections (Nav, Hero + live board preview, StatStrip, HowItWorks, Features, Cta, Footer); Framer Motion reveals vary by section; `prefers-reduced-motion` respected
 - Module 3 — Board Creation & Join (client/): `services/board.js` (createBoard/joinBoard/getMe/recoverRequest/recover); `features/board/` (CreateBoardForm, ShareInvite with copy-to-clipboard, JoinBoardForm, BoardPlaceholder, RecoverAccessForm, RecoverConfirmPage); `pages/` (CreateBoardPage, ShareInvitePage, JoinBoardPage, BoardPage, RecoverRequestPage, RecoverConfirmRoute); routes `/create`, `/share/:inviteToken`, `/join/:inviteToken`, `/board/:boardId`, `/recover`, `/recover/confirm`; all screens populate `sessionSlice` and cookie from the API response
+- Module 4 — Board Shell & Options List (client/): `store/boardSlice.js` (board/options/status + setBoard/setOptions/addOption/setStatus/resetBoard); `services/options.js` (fetchOptions/createOption/uploadOptionPhoto); `services/board.js` fetchBoard; `pages/BoardPage.jsx` replaces placeholder (parallel fetch board+options+me, socket connect on mount, disconnect on unmount); `features/board/BoardHeader.jsx`; `features/options/OptionsList.jsx` (cards: title/notes/link/photo/score/isLeading/commentCount, display-only, empty state); `features/options/ProposeOptionForm.jsx` (create → upload photo → addOption; `optionsOwnerOnly` gate; no location field)
 
 ## In Progress
 
@@ -33,7 +34,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 4 — Board Shell & Options List (client/)
+- Module 5 — Voting (client/)
 
 ## Open Questions
 
@@ -85,6 +86,12 @@ Update this file after every meaningful implementation change.
 - Module 3 (client): `ShareInvite` uses `window.location.origin` to build the invite URL so it always points at the live client origin
 - Module 3 (client): `RecoverAccessForm` always shows the same generic success message regardless of the server response (matches server's non-revealing behavior)
 - Board type: `typeLabel` field added to Board model + validators (create/PATCH) — only allowed when `type === 'Custom'`, so the creator can give custom boards a specific label (e.g. "Duel Night"); returned as `typeLabel` in all board responses
+- Module 4 (client): `services/api.js` baseURL appends `/api` — server mounts all routes under `/api`; without it every client call 404'd. `.env` untouched
+- Module 4 (server): socket CORS `credentials: true` — without it the browser blocks the cookie-authenticated socket handshake
+- Module 4 (client): `BoardPage` hydrates `sessionSlice` via `getMe()` (3-way parallel fetch) so the `optionsOwnerOnly` gate works after a page reload; gate is cosmetic — server still 403s
+- Module 4 (client): create-option sends `notes`/`link` only when non-empty — `createOptionSchema` uses `.optional()`, so explicit `null` fails Zod
+- Module 4 (client): photo path refetches + `setOptions` (create/upload endpoints return `photoKey`, not signed `photoUrl`); no-photo path stays local via `addOption`
+- Module 4 (client): participant roles are `owner`/`member` — gate checks `session.role === 'owner'`
 
 ## Session Notes
 
@@ -110,3 +117,7 @@ Update this file after every meaningful implementation change.
 - Module 3 (client): `npm run build` passes (all new routes code-split via React.lazy); `npm run lint` clean for new files
 - Module 3 enhancement (client): CreateBoardForm redesigned — compact single-card layout, floating labels that straddle the top border on focus/active, icons aligned right, orange-only focus border (rings removed), custom themed `Select` listbox in `components/Select.jsx` replacing the native select; Custom type reveals a required `typeLabel` input; `typeLabel` persisted server-side and verified via curl (create Custom + label → 201 with `typeLabel`; label without Custom type → 400)
 - Module 3 enhancement (client): reusable error system — `hooks/useFormErrors.js` (block + per-field errors with auto-dismiss timeout), `components/ErrorBanner.jsx` (top-of-form, subtle `bg-error/10` + `border-error/30`), `components/FieldError.jsx` (inline under the specific input, `text-error`); `services/api.js` now preserves server Zod `issues` (`{ path, message }`) on rejects so forms map validation errors to the right fields; wired into CreateBoardForm (server field map: `name`/`typeLabel`/`creatorDisplayName`/`creatorEmail` → local fields) and JoinBoardForm; JoinBoardForm also fixed to orange-only focus border
+- Module 4 (client): board + options render on page entry (header, card fields incl. signed-photo thumbnail, empty state) — verified headless-browser
+- Module 4 (client): creating an option (with and without photo) appears in the list with NO page reload
+- Module 4 (client): `optionsOwnerOnly` gate verified in-browser — member sees owner-only note, owner sees form (via `getMe` hydration); server 403s member create
+- Module 4 (client): socket connects on entering the board page (`/socket.io/` 200s in network tab); disconnect on unmount
