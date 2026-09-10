@@ -1,5 +1,6 @@
 import { useSelector } from 'react-redux';
 import { Circle, MessageSquare, Trophy, ExternalLink } from 'lucide-react';
+import VoteButtons from '../voting/VoteButtons';
 
 const OptionCard = ({ option }) => {
   const {
@@ -60,6 +61,8 @@ const OptionCard = ({ option }) => {
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+            <VoteButtons option={option} />
+
             <span
               className={`flex items-center gap-1.5 font-mono text-sm font-medium ${
                 score > 0 ? 'text-text-primary' : 'text-text-muted'
