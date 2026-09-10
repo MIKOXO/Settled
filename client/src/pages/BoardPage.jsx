@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Loader2 } from 'lucide-react';
 import useSocket from '../hooks/useSocket';
+import useBoardSocket from '../hooks/useBoardSocket';
 import { initSocket } from '../services/socket';
 import { fetchBoard, getMe } from '../services/board';
 import { fetchOptions } from '../services/options';
@@ -23,6 +24,7 @@ const BoardPage = () => {
   const status = useSelector((state) => state.board.status);
 
   useSocket();
+  useBoardSocket(boardId);
 
   useEffect(() => {
     let cancelled = false;

@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client build: Module 4 complete; Module 5 (Voting) next
+- Client build: Module 5 complete; Module 6 (Threads/Comments) next
 
 ## Current Goal
 
-- Module 4 — Board Shell & Options List (client/) complete. Next: Module 5 — Voting (client/).
+- Module 5 — Voting (client/) complete. Next: Module 6 — Threads/Comments (client/).
 
 ## Completed
 
@@ -27,6 +27,7 @@ Update this file after every meaningful implementation change.
 - Module 2 — Landing Page (client/): `pages/Landing.jsx` composes `features/landing/` sections (Nav, Hero + live board preview, StatStrip, HowItWorks, Features, Cta, Footer); Framer Motion reveals vary by section; `prefers-reduced-motion` respected
 - Module 3 — Board Creation & Join (client/): `services/board.js` (createBoard/joinBoard/getMe/recoverRequest/recover); `features/board/` (CreateBoardForm, ShareInvite with copy-to-clipboard, JoinBoardForm, BoardPlaceholder, RecoverAccessForm, RecoverConfirmPage); `pages/` (CreateBoardPage, ShareInvitePage, JoinBoardPage, BoardPage, RecoverRequestPage, RecoverConfirmRoute); routes `/create`, `/share/:inviteToken`, `/join/:inviteToken`, `/board/:boardId`, `/recover`, `/recover/confirm`; all screens populate `sessionSlice` and cookie from the API response
 - Module 4 — Board Shell & Options List (client/): `store/boardSlice.js` (board/options/status + setBoard/setOptions/addOption/setStatus/resetBoard); `services/options.js` (fetchOptions/createOption/uploadOptionPhoto); `services/board.js` fetchBoard; `pages/BoardPage.jsx` replaces placeholder (parallel fetch board+options+me, socket connect on mount, disconnect on unmount); `features/board/BoardHeader.jsx`; `features/options/OptionsList.jsx` (cards: title/notes/link/photo/score/isLeading/commentCount, display-only, empty state); `features/options/ProposeOptionForm.jsx` (create → upload photo → addOption; `optionsOwnerOnly` gate; no location field)
+- Module 5 — Voting (client/): `services/votes.js` (castVote/removeVote thin wrappers); `store/boardSlice.js` `applyVoteUpdate` reducer (authoritative replace of likesCount/dislikesCount/score, syncs `isLeading` across ALL options from `leadingOptionIds`); `hooks/useBoardSocket.js` (subscribes `vote:updated` → applyVoteUpdate, unsubscribes on unmount, called from BoardPage beside existing useSocket lifecycle); `features/voting/VoteButtons.jsx` (optimistic like/dislike, toggle-to-remove, like↔dislike flip, snapshot rollback + brief error state on API failure, pending guard against double-click); wired into OptionsList next to each option's score; leading-option highlight retained/strengthened (mustard border + Trophy badge)
 
 ## In Progress
 
@@ -34,7 +35,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 5 — Voting (client/)
+- Module 6 — Threads/Comments (client/)
 
 ## Open Questions
 
@@ -92,6 +93,11 @@ Update this file after every meaningful implementation change.
 - Module 4 (client): create-option sends `notes`/`link` only when non-empty — `createOptionSchema` uses `.optional()`, so explicit `null` fails Zod
 - Module 4 (client): photo path refetches + `setOptions` (create/upload endpoints return `photoKey`, not signed `photoUrl`); no-photo path stays local via `addOption`
 - Module 4 (client): participant roles are `owner`/`member` — gate checks `session.role === 'owner'`
+- Module 5 (client): `applyVoteUpdate` REPLACES absolute counts (never increments) — both the direct API response and the socket broadcast carry authoritative counts, and the client is in the board room so it receives its own broadcast back; incrementing would double-count
+- Module 5 (client): `applyVoteUpdate` syncs `isLeading` across all options from the broadcast's `leadingOptionIds` — the server emits the complete leader set, so patching only the changed option leaves leader badges stale on options that never emit their own event
+- Module 5 (client): leading-option highlight approach = STATIC (mustard `border` + Trophy badge), not a Framer Motion list reorder — the server owns option ordering (`createdAt` desc) and client-side score re-sorting isn't defined anywhere in the specs; reordering would drift from the server's list contract. Real-time re-rank deferred until score ordering is specced
+- Module 5 (client): the participant's own `vote` lives on each option object in Redux; optimistic apply / rollback / API reconcile pass an optional `vote` through `applyVoteUpdate` (the socket broadcast carries no `vote`, so it's left intact there)
+- Module 5 (client): `VoteButtons` uses a `pending` guard — buttons disabled while a request is in flight to prevent double-apply/out-of-order races (also satisfies the code-standards debounce note); rollback restores the exact pre-click counts/vote snapshot, and `isLeading` is never touched optimistically so an in-flight authoritative broadcast is preserved
 
 ## Session Notes
 
@@ -121,3 +127,4 @@ Update this file after every meaningful implementation change.
 - Module 4 (client): creating an option (with and without photo) appears in the list with NO page reload
 - Module 4 (client): `optionsOwnerOnly` gate verified in-browser — member sees owner-only note, owner sees form (via `getMe` hydration); server 403s member create
 - Module 4 (client): socket connects on entering the board page (`/socket.io/` 200s in network tab); disconnect on unmount
+- Module 5 (client): `applyVoteUpdate` semantics verified at reducer level (replace-not-increment, all-option isLeading sync, snapshot rollback, unknown-id no-op); `vote:updated` verified live across two socket clients — like propagates counts/score to the remote client, same-reaction second click removes (like 1→0), like→dislike flip updates both counts (0/1), leading moves live incl. tie (both leading) and flip-to-single-leader, own broadcast received, enriched-list `vote` field matches the participant's current vote (`null`/`like`/`dislike`); forced API failures rejected (invalid value 400, bogus option id 404) so optimistic rollback runs (23/23 assertions); `npm run build` + `npm run lint` pass
