@@ -6,6 +6,9 @@ export const createBoard = (data) =>
 export const joinBoard = (inviteToken, data) =>
   api.post(`/boards/${inviteToken}/join`, data);
 
+export const fetchBoard = (boardId) =>
+  api.get(`/boards/${boardId}`);
+
 export const getMe = () =>
   api.get('/participants/me');
 
