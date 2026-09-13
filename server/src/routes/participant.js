@@ -6,9 +6,9 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-const validateBoardId = (req, _res, next) => {
-  if (!mongoose.isValidObjectId(req.params.id)) {
-    return next(createAppError('Invalid board id', 400));
+const validateObjectId = (paramName) => (req, _res, next) => {
+  if (!mongoose.isValidObjectId(req.params[paramName])) {
+    return next(createAppError(`Invalid ${paramName}`, 400));
   }
   return next();
 };
@@ -17,6 +17,7 @@ router.get('/participants/me', requireAuth, participantController.getMe);
 router.post('/boards/:inviteToken/join', participantController.joinBoard);
 router.post('/participants/recover-request', participantController.recoverRequest);
 router.post('/participants/recover', participantController.recover);
-router.post('/boards/:id/claim-ownership', requireAuth, validateBoardId, participantController.claimOwnership);
+router.post('/boards/:id/claim-ownership', requireAuth, validateObjectId('id'), participantController.claimOwnership);
+router.get('/boards/:boardId/participants', requireAuth, validateObjectId('boardId'), participantController.listBoardParticipants);
 
 export default router;

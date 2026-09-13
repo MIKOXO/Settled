@@ -89,6 +89,19 @@ export const recover = async (token) => {
   return { participant, board, token: sessionToken };
 };
 
+export const listBoardParticipants = async (boardId) => {
+  const board = await Board.findById(boardId).lean();
+  if (!board) {
+    throw createAppError('Board not found', 404);
+  }
+
+  const participants = await Participant.find({ boardId })
+    .select('displayName role')
+    .lean();
+
+  return { participants };
+};
+
 export const claimOwnership = async (participantId, boardId) => {
   const board = await Board.findById(boardId);
   if (!board) {

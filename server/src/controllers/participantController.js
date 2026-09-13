@@ -104,6 +104,21 @@ export const recover = catchAsync(async (req, res) => {
   });
 });
 
+export const listBoardParticipants = catchAsync(async (req, res) => {
+  const { participants } = await participantService.listBoardParticipants(req.params.boardId);
+  res.status(200).json({
+    success: true,
+    data: {
+      participants: participants.map((p) => ({
+        id: p._id,
+        displayName: p.displayName,
+        role: p.role,
+      })),
+    },
+    error: null,
+  });
+});
+
 export const claimOwnership = catchAsync(async (req, res) => {
   const result = await participantService.claimOwnership(req.participant.id, req.params.id);
   res.status(200).json({
