@@ -6,6 +6,8 @@ const boardSlice = createSlice({
     board: null,
     options: [],
     comments: {},
+    availability: [],
+    participants: [],
     status: 'idle',
   },
   reducers: {
@@ -92,6 +94,37 @@ const boardSlice = createSlice({
           commentCount !== undefined ? commentCount : option.commentCount + 1;
       }
     },
+    setParticipants: (state, action) => {
+      state.participants = action.payload;
+    },
+    setAvailability: (state, action) => {
+      state.availability = action.payload;
+    },
+    upsertAvailability: (state, action) => {
+      const { participantId, date, status } = action.payload;
+      const dateKey = new Date(date).toISOString().slice(0, 10);
+      const idx = state.availability.findIndex(
+        (s) =>
+          s.participantId === participantId &&
+          new Date(s.date).toISOString().slice(0, 10) === dateKey,
+      );
+      if (idx >= 0) {
+        state.availability[idx].status = status;
+      } else {
+        state.availability.push({ participantId, date, status });
+      }
+    },
+    removeAvailability: (state, action) => {
+      const { participantId, date } = action.payload;
+      const dateKey = new Date(date).toISOString().slice(0, 10);
+      state.availability = state.availability.filter(
+        (s) =>
+          !(
+            s.participantId === participantId &&
+            new Date(s.date).toISOString().slice(0, 10) === dateKey
+          ),
+      );
+    },
     setStatus: (state, action) => {
       state.status = action.payload;
     },
@@ -99,6 +132,8 @@ const boardSlice = createSlice({
       board: null,
       options: [],
       comments: {},
+      availability: [],
+      participants: [],
       status: 'idle',
     }),
   },
@@ -112,6 +147,10 @@ export const {
   setComments,
   appendComments,
   addComment,
+  setParticipants,
+  setAvailability,
+  upsertAvailability,
+  removeAvailability,
   setStatus,
   resetBoard,
 } = boardSlice.actions;
