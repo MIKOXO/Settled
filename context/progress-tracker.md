@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client build: Module 7 complete; Module 8 (Map & Location) next
+- Client build complete — all feature modules implemented
 
 ## Current Goal
 
-- Module 7 — Availability Grid (client/) complete. Next: Module 8 — Map & Location (client/).
+- Module 8 — Map & Location (client/) complete. All FRs now have client-side coverage. Feature build-out done — entering review.
 
 ## Completed
 
@@ -31,6 +31,7 @@ Update this file after every meaningful implementation change.
 - Module 5 — Voting (client/): `services/votes.js` (castVote/removeVote thin wrappers); `store/boardSlice.js` `applyVoteUpdate` reducer (authoritative replace of likesCount/dislikesCount/score, syncs `isLeading` across ALL options from `leadingOptionIds`); `hooks/useBoardSocket.js` (subscribes `vote:updated` → applyVoteUpdate, unsubscribes on unmount, called from BoardPage beside existing useSocket lifecycle); `features/voting/VoteButtons.jsx` (optimistic like/dislike, toggle-to-remove, like↔dislike flip, snapshot rollback + brief error state on API failure, pending guard against double-click); wired into OptionsList next to each option's score; leading-option highlight retained/strengthened (mustard border + Trophy badge)
 - Module 6 — Threads/Comments (client/): `services/comments.js` (fetchComments with optional limit/cursor, postComment); `store/boardSlice.js` comments keyed per option (`{ items, hasMore, status, nextCursor }`) + `setComments`/`appendComments`/`addComment` reducers; `hooks/useBoardSocket.js` extended with `comment:added` → addComment (same hook, same lifecycle, one more event); `features/threads/CommentThread.jsx` (collapsed by default, fetch-on-first-open only, comment list with display name + relative timestamp, explicit "load older comments" cursor pagination, loading/failed/empty states); `features/threads/CommentForm.jsx` (post → `addComment` locally with the response, no optimistic prepend since the response IS the reconciled state, inline error on failure); OptionsList comment count is now a toggle button (chevron rotates), message count `font-mono`, `state-success` untouched
 - Module 7 — Availability Grid (client/): `services/availability.js` (fetchAvailability, setAvailability thin wrappers); `services/participants.js` (fetchParticipants thin wrapper for new server endpoint); `store/boardSlice.js` extended with `availability: []` + `participants: []` state, `setAvailability`/`upsertAvailability`/`removeAvailability`/`setParticipants` reducers (upsert matches by participantId+date, remove filters by same); `utils/aggregateAvailability.js` pure function: given raw slots + participants, returns per-date `{ free: [names], busy: [names], freeCount, totalCount }`; `hooks/useBoardSocket.js` extended with `availability:updated` → upsertAvailability (same hook, one more event); `features/availability/AvailabilityGrid.jsx` (30-day date grid from today, each row: date label + aggregate count + toggle button + expand chevron, expanded view shows free/busy participant name tags in respective colors; optimistic toggle (free→busy→free cycle) with snapshot rollback on API failure; pending guard per date; error banner with auto-dismiss); wired into BoardPage below OptionsList; parallel fetch of availability + participants on board load
+- Module 8 — Map & Location (client/): `services/location.js` (fetchLocations, setMyLocation, removeMyLocation, searchPlaces thin wrappers); `store/boardSlice.js` extended with `participantLocations: []` + `optionLocations: []` state, `setLocations`/`upsertParticipantLocation`/`removeParticipantLocation` reducers (upsert matches by participantId); `hooks/useBoardSocket.js` extended with `location:updated` → upsertParticipantLocation + `location:removed` → removeParticipantLocation (same hook, two more events); `features/map/PlaceSearch.jsx` (debounced search input, 400ms debounce, min 3 chars before firing, dropdown results, clear button, click-outside-to-close); `features/map/BoardMap.jsx` (React Leaflet + OSM tiles, custom coral `divIcon` for option pins, mustard `divIcon` for participant pins, legend overlay, click-to-pick mode via `MapClickHandler`); `features/map/LocationOptIn.jsx` (opt-in control: search-or-map pick, disclosure text "Your exact location will be visible to everyone on this board", shows current location with remove button, error/success states); `features/options/ProposeOptionForm.jsx` extended with optional location picker (search-or-map inline, shows selected location with remove, passes `{ lat, lng, placeName, placeSource }` to createOption); `pages/BoardPage.jsx` wired with BoardMap + LocationOptIn section below AvailabilityGrid, parallel fetch of locations on board load; `index.html` updated with Leaflet CSS CDN link; `react-leaflet` + `leaflet` added to dependencies
 
 ## In Progress
 
@@ -38,7 +39,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 8 — Map & Location (client/)
+- Review & polish — all feature modules complete
 
 ## Open Questions
 
@@ -111,6 +112,23 @@ Update this file after every meaningful implementation change.
 - Module 6 (client): `addComment` dedupes by comment id when prepending — the posting client applies the POST response locally, then its own `comment:added` echo arrives; without the id check the same comment would render twice
 - Module 6 (client): store thread shape is `{ items, hasMore, status, nextCursor }` — `nextCursor` is an extension of the specced `{ items, hasMore, status }` shape required for the "load more" pagination control; `appendComments` merges older pages at the tail (newest stays at index 0), `hasMore`/`nextCursor` come from the latest page only
 - Module 6 (client): `CommentThread` fetches on first expand (`loadedRef`), never on form interactions; a thread left unopened still gets its comment count synced because `addComment` updates `options[].commentCount` directly from the broadcast — collapsed card count stays live with zero thread state
+- Module 8 (client): `PlaceSearch` debounces at 400ms with min 3 chars before firing — client-side responsibility per architecture.md's accepted Nominatim rate-limit constraint; dropdown closes on click-outside via `mousedown` listener
+- Module 8 (client): option pins use coral `divIcon`, participant pins use mustard `divIcon` — visually distinct for proposed places vs. people, matching brand token hierarchy (coral = primary action, mustard = secondary emphasis)
+- Module 8 (client): `BoardMap` supports two modes: display-only (default, no scroll zoom) and selectable (crosshair cursor, click-to-pick, scroll zoom enabled) — reused by both the board map and the option form's inline map picker
+- Module 8 (client): `LocationOptIn` disclosure text ("Your exact location will be visible to everyone on this board") is a required visible statement per the finalized no-fuzzing decision — not buried in fine print
+- Module 8 (client): `ProposeOptionForm` location picker passes `{ lat, lng, placeName, placeSource: 'search' | 'manual' }` to `createOption` — server's `createOptionSchema` accepts `location` as optional object with required `placeSource` enum
+- Module 8 (client): `setLocations` reducer replaces both arrays atomically — `optionLocations` are read-only on the client (no optimistic state), `participantLocations` are patched via socket events
+- Module 8 (client): `upsertParticipantLocation` matches by `participantId` (unique per `ParticipantLocation` model) — one location per participant, upserted on PUT
+- Module 8 (client): Leaflet CSS loaded via CDN in `index.html` — avoids bundler import issues with leaflet's CSS path resolution in Vite
+- Module 8 (client): `react-leaflet` + `leaflet` added to `package.json` dependencies — Leaflet is not code-split since the map is a board-level section, not a route-level page
+
+## Open Items Going Into Review
+
+- ShareInvite screen question: the share invite flow renders at `/share/:inviteToken` — needs UX review for whether it should auto-redirect to the board for logged-in users or always show the invite link
+- Multi-board recovery ambiguity: the recovery flow (`/recover`) doesn't disambiguate which board a participant should land on if they've participated in multiple boards — currently just redirects to their most recent board
+- Availability grid date range: defaults to today + 30 days on the client; the backend accepts any date via PUT with no restriction — product decision needed on whether the grid should show a configurable range or allow scrolling
+- Map center fallback: when no locations exist, the map defaults to NYC coordinates (40.7128, -74.006) — should probably use the board creator's location or a generic default
+- Leaflet tile attribution: uses OSM default tiles — acceptable for MVP but may want custom tile styling for the dark theme in the future
 
 ## Session Notes
 
@@ -142,3 +160,4 @@ Update this file after every meaningful implementation change.
 - Module 4 (client): socket connects on entering the board page (`/socket.io/` 200s in network tab); disconnect on unmount
 - Module 5 (client): `applyVoteUpdate` semantics verified at reducer level (replace-not-increment, all-option isLeading sync, snapshot rollback, unknown-id no-op); `vote:updated` verified live across two socket clients — like propagates counts/score to the remote client, same-reaction second click removes (like 1→0), like→dislike flip updates both counts (0/1), leading moves live incl. tie (both leading) and flip-to-single-leader, own broadcast received, enriched-list `vote` field matches the participant's current vote (`null`/`like`/`dislike`); forced API failures rejected (invalid value 400, bogus option id 404) so optimistic rollback runs (23/23 assertions); `npm run build` + `npm run lint` pass
 - Module 6 (client): reducer semantics verified — setComments stores page+cursor, appendComments merges at tail keeping newest-first, addComment prepends + sets authoritative commentCount (no increment), own echo dedupes (no double comment/render, no double count), unopened-thread entry created idle, collapsed-card count updated from payload; live two-client — `comment:added` received with body + display name + authoritative count (no email), list endpoint count synced, pagination 20+5 with non-overlapping pages + nextCursor, both pages merged by the real reducers to 25, latest comment lands at top, blank comment → 400 so the form shows its error (30/30 assertions); `npm run build` + `npm run lint` pass
+- Module 8 (client): `npm run build` + `npm run lint` pass; `react-leaflet` + `leaflet` installed, Leaflet CSS loaded via CDN; `services/location.js` created (fetchLocations, setMyLocation, removeMyLocation, searchPlaces); `store/boardSlice.js` extended with `participantLocations`/`optionLocations` state + 3 reducers; `useBoardSocket.js` extended with `location:updated` + `location:removed` handlers; `features/map/` created with PlaceSearch (debounced 400ms, min 3 chars, dropdown, click-outside-close), BoardMap (React Leaflet + OSM tiles, coral/mustard divIcon markers, legend, selectable mode), LocationOptIn (search/map pick, disclosure text, remove button); ProposeOptionForm extended with optional location picker (search/map inline, passes location to createOption); BoardPage wired with Map section + parallel location fetch

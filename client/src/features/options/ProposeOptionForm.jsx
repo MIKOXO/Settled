@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
-import { Loader2, Lock, Plus } from 'lucide-react';
+import { Loader2, Lock, Plus, MapPin, X } from 'lucide-react';
 import { createOption, uploadOptionPhoto, fetchOptions } from '../../services/options';
 import { addOption, setOptions } from '../../store/boardSlice';
 import ErrorBanner from '../../components/ErrorBanner';
 import useFormErrors from '../../hooks/useFormErrors';
+import PlaceSearch from '../map/PlaceSearch';
+import BoardMap from '../map/BoardMap';
 
 const inputClasses =
   'w-full rounded-btn border border-border bg-surface px-3.5 py-2.5 font-sans text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent transition-colors duration-200';
@@ -22,6 +24,8 @@ const ProposeOptionForm = () => {
   const [link, setLink] = useState('');
   const [photo, setPhoto] = useState(null);
   const [photoName, setPhotoName] = useState('');
+  const [location, setLocation] = useState(null);
+  const [locationMode, setLocationMode] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   const { blockError, setBlockError, clearBlockError } = useFormErrors();
@@ -59,6 +63,14 @@ const ProposeOptionForm = () => {
         title: title.trim(),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
         ...(link.trim() ? { link: link.trim() } : {}),
+        ...(location ? {
+          location: {
+            lat: location.lat,
+            lng: location.lng,
+            placeName: location.placeName,
+            placeSource: location.placeSource,
+          },
+        } : {}),
       });
 
       let option = result.option;
@@ -87,6 +99,8 @@ const ProposeOptionForm = () => {
       setLink('');
       setPhoto(null);
       setPhotoName('');
+      setLocation(null);
+      setLocationMode(null);
       e.target.photo.value = '';
     } catch (err) {
       setBlockError(err.message || 'Could not add the option');
@@ -175,6 +189,86 @@ const ProposeOptionForm = () => {
               className="sr-only"
             />
           </label>
+        </div>
+
+        <div className="sm:col-span-2">
+          <label className="mb-1.5 block font-sans text-sm font-medium text-text-muted">
+            Location
+          </label>
+
+          {location ? (
+            <div className="flex items-center gap-2 rounded-btn border border-accent/50 bg-accent/5 px-3.5 py-2.5">
+              <MapPin className="h-4 w-4 shrink-0 text-accent" />
+              <span className="flex-1 truncate font-sans text-sm text-text-primary">
+                {location.placeName ?? `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => { setLocation(null); setLocationMode(null); }}
+                className="shrink-0 text-text-muted hover:text-error transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : !locationMode ? (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setLocationMode('search')}
+                className="flex flex-1 items-center justify-center gap-2 rounded-btn border border-border bg-surface-2 px-3 py-2 font-sans text-sm text-text-muted transition-colors duration-200 hover:border-accent hover:text-text-primary"
+              >
+                <MapPin className="h-4 w-4" />
+                Search for a place
+              </button>
+              <button
+                type="button"
+                onClick={() => setLocationMode('map')}
+                className="flex flex-1 items-center justify-center gap-2 rounded-btn border border-border bg-surface-2 px-3 py-2 font-sans text-sm text-text-muted transition-colors duration-200 hover:border-accent hover:text-text-primary"
+              >
+                <MapPin className="h-4 w-4" />
+                Pick on map
+              </button>
+            </div>
+          ) : locationMode === 'search' ? (
+            <div className="space-y-2">
+              <PlaceSearch
+                onSelect={(place) => {
+                  if (place) {
+                    setLocation({ ...place, placeSource: 'search' });
+                    setLocationMode(null);
+                  }
+                }}
+                placeholder="Search for a place..."
+              />
+              <button
+                type="button"
+                onClick={() => setLocationMode(null)}
+                className="font-sans text-xs text-text-muted hover:text-text-primary transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="font-sans text-xs text-accent">
+                Tap anywhere on the map to set a location
+              </p>
+              <BoardMap
+                selectable
+                onMapClick={(coords) => {
+                  setLocation({ ...coords, placeName: null, placeSource: 'manual' });
+                  setLocationMode(null);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setLocationMode(null)}
+                className="font-sans text-xs text-text-muted hover:text-text-primary transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

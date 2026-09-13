@@ -9,11 +9,13 @@ import { fetchBoard, getMe } from '../services/board';
 import { fetchOptions } from '../services/options';
 import { fetchAvailability } from '../services/availability';
 import { fetchParticipants } from '../services/participants';
+import { fetchLocations } from '../services/location';
 import {
   setBoard,
   setOptions,
   setAvailability,
   setParticipants,
+  setLocations,
   setStatus,
   resetBoard,
 } from '../store/boardSlice';
@@ -22,6 +24,8 @@ import BoardHeader from '../features/board/BoardHeader';
 import OptionsList from '../features/options/OptionsList';
 import ProposeOptionForm from '../features/options/ProposeOptionForm';
 import AvailabilityGrid from '../features/availability/AvailabilityGrid';
+import BoardMap from '../features/map/BoardMap';
+import LocationOptIn from '../features/map/LocationOptIn';
 
 const BoardPage = () => {
   const { boardId } = useParams();
@@ -41,12 +45,13 @@ const BoardPage = () => {
       }
 
       try {
-        const [board, options, me, availabilityRes, participantsRes] = await Promise.all([
+        const [board, options, me, availabilityRes, participantsRes, locationsRes] = await Promise.all([
           fetchBoard(boardId),
           fetchOptions(boardId),
           getMe(),
           fetchAvailability(boardId),
           fetchParticipants(boardId),
+          fetchLocations(boardId),
         ]);
 
         if (!cancelled) {
@@ -62,6 +67,7 @@ const BoardPage = () => {
           dispatch(setOptions(options.options));
           dispatch(setAvailability(availabilityRes.slots));
           dispatch(setParticipants(participantsRes.participants));
+          dispatch(setLocations(locationsRes));
           dispatch(setStatus('succeeded'));
           initSocket().connect();
         }
@@ -130,6 +136,18 @@ const BoardPage = () => {
         <ProposeOptionForm />
         <OptionsList />
         <AvailabilityGrid boardId={boardId} />
+
+        <section className="mt-8">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-heading text-lg font-semibold text-text-primary">
+              Map
+            </h2>
+          </div>
+          <BoardMap />
+          <div className="mt-3">
+            <LocationOptIn boardId={boardId} />
+          </div>
+        </section>
       </main>
     </div>
   );
