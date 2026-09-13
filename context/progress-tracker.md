@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client build: Module 6 complete; Module 7 (Availability Grid) next
+- Client build: Module 7 complete; Module 8 (Map & Location) next
 
 ## Current Goal
 
-- Module 6 — Threads/Comments (client/) complete. Next: Module 7 — Availability Grid (client/).
+- Module 7 — Availability Grid (client/) complete. Next: Module 8 — Map & Location (client/).
 
 ## Completed
 
@@ -19,6 +19,7 @@ Update this file after every meaningful implementation change.
 - Module 5 — Options (server/): Option + Location models, B2 photo upload + signed URLs, option CRUD endpoints, photo upload (creator/owner), `optionsOwnerOnly` board setting
 - Module 6 — Voting (server/): Vote model, cast/change/remove reactions (atomic `$inc`), score + `isLeading` per request, `vote:updated` broadcast
 - Module 7 — Threads/Comments (server/): Comment model, post + cursor-paginated list, atomic `commentCount` on Option, `comment:added` broadcast
+- Module 7 server addition — `GET /boards/:boardId/participants`: returns all participants for a board (`id`, `displayName`, `role`); required by availability grid to resolve participant IDs to display names. Reuses existing Participant model, no new models.
 - Module 8 — Availability (server/): AvailabilitySlot model, per-toggle upsert (date normalized to midnight UTC), raw list endpoint, `availability:updated` broadcast
 - Module 9 — Map & Location (server/): ParticipantLocation model, participant/option pin listing, Nominatim place search proxy, `location:updated`/`location:removed` broadcasts
 - Module 1 Step A — Foundation & App Shell (client/): Vite dev server port 3000, folder structure (pages/, features/, components/, hooks/, services/, store/, context/, utils/), design tokens as CSS custom properties, Tailwind config wired to tokens, Layout component (sticky blurred nav, Settled logo), react-router-dom shell with placeholder route
@@ -29,6 +30,7 @@ Update this file after every meaningful implementation change.
 - Module 4 — Board Shell & Options List (client/): `store/boardSlice.js` (board/options/status + setBoard/setOptions/addOption/setStatus/resetBoard); `services/options.js` (fetchOptions/createOption/uploadOptionPhoto); `services/board.js` fetchBoard; `pages/BoardPage.jsx` replaces placeholder (parallel fetch board+options+me, socket connect on mount, disconnect on unmount); `features/board/BoardHeader.jsx`; `features/options/OptionsList.jsx` (cards: title/notes/link/photo/score/isLeading/commentCount, display-only, empty state); `features/options/ProposeOptionForm.jsx` (create → upload photo → addOption; `optionsOwnerOnly` gate; no location field)
 - Module 5 — Voting (client/): `services/votes.js` (castVote/removeVote thin wrappers); `store/boardSlice.js` `applyVoteUpdate` reducer (authoritative replace of likesCount/dislikesCount/score, syncs `isLeading` across ALL options from `leadingOptionIds`); `hooks/useBoardSocket.js` (subscribes `vote:updated` → applyVoteUpdate, unsubscribes on unmount, called from BoardPage beside existing useSocket lifecycle); `features/voting/VoteButtons.jsx` (optimistic like/dislike, toggle-to-remove, like↔dislike flip, snapshot rollback + brief error state on API failure, pending guard against double-click); wired into OptionsList next to each option's score; leading-option highlight retained/strengthened (mustard border + Trophy badge)
 - Module 6 — Threads/Comments (client/): `services/comments.js` (fetchComments with optional limit/cursor, postComment); `store/boardSlice.js` comments keyed per option (`{ items, hasMore, status, nextCursor }`) + `setComments`/`appendComments`/`addComment` reducers; `hooks/useBoardSocket.js` extended with `comment:added` → addComment (same hook, same lifecycle, one more event); `features/threads/CommentThread.jsx` (collapsed by default, fetch-on-first-open only, comment list with display name + relative timestamp, explicit "load older comments" cursor pagination, loading/failed/empty states); `features/threads/CommentForm.jsx` (post → `addComment` locally with the response, no optimistic prepend since the response IS the reconciled state, inline error on failure); OptionsList comment count is now a toggle button (chevron rotates), message count `font-mono`, `state-success` untouched
+- Module 7 — Availability Grid (client/): `services/availability.js` (fetchAvailability, setAvailability thin wrappers); `services/participants.js` (fetchParticipants thin wrapper for new server endpoint); `store/boardSlice.js` extended with `availability: []` + `participants: []` state, `setAvailability`/`upsertAvailability`/`removeAvailability`/`setParticipants` reducers (upsert matches by participantId+date, remove filters by same); `utils/aggregateAvailability.js` pure function: given raw slots + participants, returns per-date `{ free: [names], busy: [names], freeCount, totalCount }`; `hooks/useBoardSocket.js` extended with `availability:updated` → upsertAvailability (same hook, one more event); `features/availability/AvailabilityGrid.jsx` (30-day date grid from today, each row: date label + aggregate count + toggle button + expand chevron, expanded view shows free/busy participant name tags in respective colors; optimistic toggle (free→busy→free cycle) with snapshot rollback on API failure; pending guard per date; error banner with auto-dismiss); wired into BoardPage below OptionsList; parallel fetch of availability + participants on board load
 
 ## In Progress
 
@@ -36,7 +38,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Module 7 — Availability Grid (client/)
+- Module 8 — Map & Location (client/)
 
 ## Open Questions
 
@@ -46,6 +48,7 @@ Update this file after every meaningful implementation change.
 - Duplicate participant joins not prevented (accepted tradeoff)
 - Session cookies `secure: false` in dev — must be `true` in production
 - Participant emails never exposed to other participants (NFR7)
+- Availability grid date range: currently defaults to today through the next 30 days (client-side). The backend accepts any date via PUT and has no restriction on date range. The spec never defines what range the grid should cover — this is an open question for product decision
 
 ## Architecture Decisions
 
@@ -70,6 +73,11 @@ Update this file after every meaningful implementation change.
 - Module 6: reaction counts via Mongoose `$inc` (atomic); unique index (optionId, participantId) enforces one reaction per option
 - Module 6: `socket.io-client` used only as a dev-time verification dependency (`npm install --no-save`), not added to package.json — validates real-time behavior across two clients.
 - Module 7: `requireOptionBoardMembership` shared middleware — option-exists + participant-on-board check, replaces duplicated logic in photo (Module 5) and vote (Module 6); used by photo, vote, and comment routes
+- Module 7 client: availability grid defaults to 30-day range (today + next 30 days); the backend accepts any date via PUT — date range is a product decision, not enforced server-side
+- Module 7 client: `GET /boards/:boardId/participants` endpoint added (service → controller → route, `requireAuth`) to resolve participant IDs to display names; reuses existing Participant model
+- Module 7 client: `aggregateAvailability` is a pure function in `utils/` — not computed inline in components; returns per-date `{ free: [names], busy: [names], freeCount, totalCount }`
+- Module 7 client: optimistic toggle cycle is free→busy→free (no "remove" state from the UI perspective); rollback restores exact prior state (including null → removeAvailability when no prior entry existed)
+- Module 7 client: `upsertAvailability` reducer matches by (participantId, date-normalized-to-day) to handle date string variations; `removeAvailability` filters by same compound key
 - Module 8: availability per-toggle write (not bulk save) — each grid click upserts one slot + broadcasts live immediately
 - Module 8: `PUT /boards/:boardId/availability` uses `findOneAndUpdate` with `upsert: true` on compound unique index (boardId, participantId, date) — no duplicates on repeated calls
 - Module 8: dates normalized to midnight UTC server-side for clean comparisons; GET returns raw slot list, no server-side aggregation

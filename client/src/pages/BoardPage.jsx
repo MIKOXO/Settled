@@ -7,9 +7,13 @@ import useBoardSocket from '../hooks/useBoardSocket';
 import { initSocket } from '../services/socket';
 import { fetchBoard, getMe } from '../services/board';
 import { fetchOptions } from '../services/options';
+import { fetchAvailability } from '../services/availability';
+import { fetchParticipants } from '../services/participants';
 import {
   setBoard,
   setOptions,
+  setAvailability,
+  setParticipants,
   setStatus,
   resetBoard,
 } from '../store/boardSlice';
@@ -17,6 +21,7 @@ import { setSession } from '../store/sessionSlice';
 import BoardHeader from '../features/board/BoardHeader';
 import OptionsList from '../features/options/OptionsList';
 import ProposeOptionForm from '../features/options/ProposeOptionForm';
+import AvailabilityGrid from '../features/availability/AvailabilityGrid';
 
 const BoardPage = () => {
   const { boardId } = useParams();
@@ -36,10 +41,12 @@ const BoardPage = () => {
       }
 
       try {
-        const [board, options, me] = await Promise.all([
+        const [board, options, me, availabilityRes, participantsRes] = await Promise.all([
           fetchBoard(boardId),
           fetchOptions(boardId),
           getMe(),
+          fetchAvailability(boardId),
+          fetchParticipants(boardId),
         ]);
 
         if (!cancelled) {
@@ -53,6 +60,8 @@ const BoardPage = () => {
           }
           dispatch(setBoard(board));
           dispatch(setOptions(options.options));
+          dispatch(setAvailability(availabilityRes.slots));
+          dispatch(setParticipants(participantsRes.participants));
           dispatch(setStatus('succeeded'));
           initSocket().connect();
         }
@@ -120,6 +129,7 @@ const BoardPage = () => {
         <BoardHeader />
         <ProposeOptionForm />
         <OptionsList />
+        <AvailabilityGrid boardId={boardId} />
       </main>
     </div>
   );
