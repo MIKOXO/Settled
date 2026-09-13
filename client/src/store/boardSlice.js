@@ -8,6 +8,8 @@ const boardSlice = createSlice({
     comments: {},
     availability: [],
     participants: [],
+    participantLocations: [],
+    optionLocations: [],
     status: 'idle',
   },
   reducers: {
@@ -125,6 +127,28 @@ const boardSlice = createSlice({
           ),
       );
     },
+    setLocations: (state, action) => {
+      const { participantLocations, optionLocations } = action.payload;
+      state.participantLocations = participantLocations ?? [];
+      state.optionLocations = optionLocations ?? [];
+    },
+    upsertParticipantLocation: (state, action) => {
+      const loc = action.payload;
+      const idx = state.participantLocations.findIndex(
+        (l) => l.participantId === loc.participantId,
+      );
+      if (idx >= 0) {
+        state.participantLocations[idx] = loc;
+      } else {
+        state.participantLocations.push(loc);
+      }
+    },
+    removeParticipantLocation: (state, action) => {
+      const participantId = action.payload;
+      state.participantLocations = state.participantLocations.filter(
+        (l) => l.participantId !== participantId,
+      );
+    },
     setStatus: (state, action) => {
       state.status = action.payload;
     },
@@ -134,6 +158,8 @@ const boardSlice = createSlice({
       comments: {},
       availability: [],
       participants: [],
+      participantLocations: [],
+      optionLocations: [],
       status: 'idle',
     }),
   },
@@ -151,6 +177,9 @@ export const {
   setAvailability,
   upsertAvailability,
   removeAvailability,
+  setLocations,
+  upsertParticipantLocation,
+  removeParticipantLocation,
   setStatus,
   resetBoard,
 } = boardSlice.actions;
