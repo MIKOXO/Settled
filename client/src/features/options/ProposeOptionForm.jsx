@@ -32,7 +32,7 @@ const ProposeOptionForm = () => {
 
   if (!canCreate) {
     return (
-      <div className="mt-6 flex items-center gap-3 rounded-btn border border-border bg-surface px-4 py-3">
+      <div className="flex items-center gap-3 rounded-btn border border-border bg-surface px-4 py-3">
         <Lock className="h-4 w-4 shrink-0 text-text-muted" />
         <p className="font-sans text-sm text-text-muted">
           Only the board owner can add options.
@@ -112,7 +112,7 @@ const ProposeOptionForm = () => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-6 rounded-card border border-border bg-surface p-5 sm:p-6"
+      className="rounded-card border border-border bg-surface p-5 sm:p-6"
     >
       <div className="mb-4 flex items-center gap-2">
         <Plus className="h-4 w-4 text-accent" />

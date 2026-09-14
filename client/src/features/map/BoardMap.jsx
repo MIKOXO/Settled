@@ -6,14 +6,14 @@ import { fetchLocations } from '../../services/location';
 
 const OPTION_ICON = divIcon({
   className: '',
-  html: '<div style="width:28px;height:28px;border-radius:50%;background:#FF6B4A;border:3px solid #221C17;display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50;background:#F5F1E8"></div></div>',
+  html: '<div style="width:28px;height:28px;border-radius:50%;background:var(--accent-primary);border:3px solid var(--bg-surface);display:flex;align-items:center;justify-content:center"><div style="width:8px;height:8px;border-radius:50%;background:var(--text-primary)"></div></div>',
   iconSize: [28, 28],
   iconAnchor: [14, 14],
 });
 
 const PARTICIPANT_ICON = divIcon({
   className: '',
-  html: '<div style="width:24px;height:24px;border-radius:50%;background:#F4B942;border:3px solid #221C17;display:flex;align-items:center;justify-content:center"><div style="width:6px;height:6px;border-radius:50%;background:#221C17"></div></div>',
+  html: '<div style="width:24px;height:24px;border-radius:50%;background:var(--accent-secondary);border:3px solid var(--bg-surface);display:flex;align-items:center;justify-content:center"><div style="width:6px;height:6px;border-radius:50%;background:var(--bg-surface)"></div></div>',
   iconSize: [24, 24],
   iconAnchor: [12, 12],
 });

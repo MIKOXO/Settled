@@ -105,7 +105,7 @@ const OptionsList = () => {
 
   if (options.length === 0) {
     return (
-      <div className="mt-8 rounded-card border border-dashed border-border bg-surface px-6 py-14 text-center">
+      <div className="mt-6 rounded-card border border-dashed border-border bg-surface px-6 py-14 text-center">
         <p className="font-heading text-lg font-semibold text-text-primary">
           No options yet
         </p>
@@ -117,16 +117,7 @@ const OptionsList = () => {
   }
 
   return (
-    <section className="mt-8">
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="font-heading text-lg font-semibold text-text-primary">
-          Options
-        </h2>
-        <span className="font-mono text-sm text-text-muted">
-          {options.length}
-        </span>
-      </div>
-
+    <section className="mt-6" aria-label="Options">
       <div className="space-y-3">
         {options.map((option) => (
           <OptionCard key={option.id} option={option} />
