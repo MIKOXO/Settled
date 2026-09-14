@@ -5,6 +5,7 @@ import { getSocket } from '../services/socket';
 import {
   addComment,
   applyVoteUpdate,
+  removeAvailability,
   upsertAvailability,
   upsertParticipantLocation,
   removeParticipantLocation,
@@ -39,6 +40,10 @@ const useBoardSocket = (boardId) => {
       dispatch(upsertAvailability(payload));
     };
 
+    const handleAvailabilityRemoved = (payload) => {
+      dispatch(removeAvailability(payload));
+    };
+
     const handleLocationUpdated = (payload) => {
       dispatch(upsertParticipantLocation(payload));
     };
@@ -61,6 +66,7 @@ const useBoardSocket = (boardId) => {
     socket.on('vote:updated', handleVoteUpdated);
     socket.on('comment:added', handleCommentAdded);
     socket.on('availability:updated', handleAvailabilityUpdated);
+    socket.on('availability:removed', handleAvailabilityRemoved);
     socket.on('location:updated', handleLocationUpdated);
     socket.on('location:removed', handleLocationRemoved);
     socket.on('board:decided', handleBoardDecided);
@@ -70,6 +76,7 @@ const useBoardSocket = (boardId) => {
       socket.off('vote:updated', handleVoteUpdated);
       socket.off('comment:added', handleCommentAdded);
       socket.off('availability:updated', handleAvailabilityUpdated);
+      socket.off('availability:removed', handleAvailabilityRemoved);
       socket.off('location:updated', handleLocationUpdated);
       socket.off('location:removed', handleLocationRemoved);
       socket.off('board:decided', handleBoardDecided);
