@@ -2,7 +2,7 @@ import { AvailabilitySlot } from '../models/AvailabilitySlot.js';
 import { Board } from '../models/Board.js';
 import { Participant } from '../models/Participant.js';
 import { createAppError } from '../utils/AppError.js';
-import { emitAvailabilityUpdated } from '../sockets/availabilityEmitter.js';
+import { emitAvailabilityUpdated, emitAvailabilityRemoved } from '../sockets/availabilityEmitter.js';
 
 const normalizeToMidnightUtc = (dateStr) => {
   const d = new Date(dateStr);
@@ -35,6 +35,33 @@ export const upsertAvailability = async (participantId, boardId, { date, status 
   });
 
   return { slot };
+};
+
+export const removeAvailability = async (participantId, boardId, { date }) => {
+  const board = await Board.findById(boardId);
+  if (!board) {
+    throw createAppError('Board not found', 404);
+  }
+
+  const participant = await Participant.findOne({ _id: participantId, boardId });
+  if (!participant) {
+    throw createAppError('Participant not found on this board', 403);
+  }
+
+  const normalizedDate = normalizeToMidnightUtc(date);
+
+  await AvailabilitySlot.findOneAndDelete({
+    boardId,
+    participantId,
+    date: normalizedDate,
+  });
+
+  emitAvailabilityRemoved(boardId, {
+    participantId,
+    date: normalizedDate,
+  });
+
+  return { date: normalizedDate };
 };
 
 export const listAvailability = async (boardId, participantId) => {

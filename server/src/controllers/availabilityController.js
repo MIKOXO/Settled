@@ -1,5 +1,8 @@
 import { catchAsync } from '../utils/catchAsync.js';
-import { upsertAvailabilitySchema } from '../validators/availability.js';
+import {
+  removeAvailabilitySchema,
+  upsertAvailabilitySchema,
+} from '../validators/availability.js';
 import * as availabilityService from '../services/availabilityService.js';
 
 export const upsertAvailability = catchAsync(async (req, res) => {
@@ -20,6 +23,20 @@ export const upsertAvailability = catchAsync(async (req, res) => {
         status: slot.status,
       },
     },
+    error: null,
+  });
+});
+
+export const removeAvailability = catchAsync(async (req, res) => {
+  const { date } = removeAvailabilitySchema.parse({ date: req.params.date });
+  await availabilityService.removeAvailability(
+    req.participant.id,
+    req.params.boardId,
+    { date },
+  );
+  res.status(200).json({
+    success: true,
+    data: { removed: true },
     error: null,
   });
 });

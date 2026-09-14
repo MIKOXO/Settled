@@ -5,3 +5,9 @@ export const emitAvailabilityUpdated = (boardId, payload) => {
   if (!io) return;
   io.to(`board:${boardId}`).emit('availability:updated', payload);
 };
+
+export const emitAvailabilityRemoved = (boardId, payload) => {
+  const io = getIo();
+  if (!io) return;
+  io.to(`board:${boardId}`).emit('availability:removed', payload);
+};

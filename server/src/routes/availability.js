@@ -28,4 +28,11 @@ router.get(
   availabilityController.listAvailability,
 );
 
+router.delete(
+  '/boards/:boardId/availability/:date',
+  requireAuth,
+  validateBoardId,
+  availabilityController.removeAvailability,
+);
+
 export default router;

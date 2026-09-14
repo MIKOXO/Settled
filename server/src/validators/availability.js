@@ -8,3 +8,11 @@ export const upsertAvailabilitySchema = z
     status: z.enum(['free', 'busy']),
   })
   .strict();
+
+export const removeAvailabilitySchema = z
+  .object({
+    date: z.string().refine((val) => !Number.isNaN(Date.parse(val)), {
+      message: 'Invalid date',
+    }),
+  })
+  .strict();
