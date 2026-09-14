@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Loader2 } from 'lucide-react';
@@ -21,20 +21,19 @@ import {
 } from '../store/boardSlice';
 import { setSession } from '../store/sessionSlice';
 import BoardHeader from '../features/board/BoardHeader';
-import BoardSettingsForm from '../features/board/BoardSettingsForm';
-import ParticipantList from '../features/board/ParticipantList';
-import LockDecisionButton from '../features/board/LockDecisionButton';
-import ClaimOwnershipButton from '../features/board/ClaimOwnershipButton';
+import BoardTabs from '../features/board/BoardTabs';
 import OptionsList from '../features/options/OptionsList';
 import ProposeOptionForm from '../features/options/ProposeOptionForm';
 import AvailabilityGrid from '../features/availability/AvailabilityGrid';
-import BoardMap from '../features/map/BoardMap';
-import LocationOptIn from '../features/map/LocationOptIn';
+import BoardMapSection from '../features/map/BoardMapSection';
+
+const TAB_LABELS = { options: 'Options', dates: 'Dates', map: 'Map' };
 
 const BoardPage = () => {
   const { boardId } = useParams();
   const dispatch = useDispatch();
   const status = useSelector((state) => state.board.status);
+  const [activeTab, setActiveTab] = useState('options');
 
   useSocket();
   useBoardSocket(boardId);
@@ -135,31 +134,27 @@ const BoardPage = () => {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-5xl px-4 py-6">
-        <BoardHeader />
-        <ProposeOptionForm />
-        <OptionsList />
-        <AvailabilityGrid boardId={boardId} />
+      <main className="py-6">
+        <div className="mx-auto max-w-5xl px-4">
+          <BoardHeader boardId={boardId} />
+        </div>
 
-        <ClaimOwnershipButton boardId={boardId} />
+        <BoardTabs active={activeTab} onChange={setActiveTab} />
 
-        <section className="mt-8 grid gap-6 sm:grid-cols-2">
-          <LockDecisionButton />
-          <BoardSettingsForm />
-          <ParticipantList boardId={boardId} />
-        </section>
+        <div className="mx-auto max-w-5xl px-4">
+          <div role="tabpanel" aria-label={TAB_LABELS[activeTab]} className="mt-6">
+            {activeTab === 'options' && (
+              <>
+                <ProposeOptionForm />
+                <OptionsList />
+              </>
+            )}
 
-        <section className="mt-8">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-heading text-lg font-semibold text-text-primary">
-              Map
-            </h2>
+            {activeTab === 'dates' && <AvailabilityGrid boardId={boardId} />}
+
+            {activeTab === 'map' && <BoardMapSection boardId={boardId} />}
           </div>
-          <BoardMap />
-          <div className="mt-3">
-            <LocationOptIn boardId={boardId} />
-          </div>
-        </section>
+        </div>
       </main>
     </div>
   );

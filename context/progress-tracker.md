@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Owner Controls complete — server + client implemented
+- Review pass — feature build-out complete; board page layout restructured (tabbed shell + header command bar)
 
 ## Current Goal
 
-- Module 9 — Owner Controls (server + client/) complete. All owner-management FRs covered. Feature build-out done — entering review.
+- Board page styling — the single stacked column is replaced by a tabbed shell, with owner controls moved into the header command bar. Client-only: no server, socket, or store changes.
 
 ## Completed
 
@@ -40,6 +40,11 @@ Update this file after every meaningful implementation change.
 - Server `services/boardService.js` — added `lockDecision` and `removeParticipant` methods
 - Server `controllers/boardController.js` — added `lockDecision` and `removeParticipant` handlers; all board responses now include `decidedOptionId`
 - Module 9 — Owner Controls (client/): `services/board.js` extended with `fetchParticipants`, `lockDecision`, `removeParticipant`, `updateBoard`, `claimOwnership`; `hooks/useBoardSocket.js` extended with `board:decided` → `setBoard` merge + `participant:removed` → clear session + redirect if self; `store/boardSlice.js` `setBoard` reducer now merges partial updates; `features/board/BoardSettingsForm.jsx` (owner-only: edit name/type, toggle optionsOwnerOnly); `features/board/ParticipantList.jsx` (owner-only: fetch participants, remove with confirm step); `features/board/LockDecisionButton.jsx` (owner-only: pick option + lock, shows decided state with option title); `features/board/ClaimOwnershipButton.jsx` (non-owner: claim ownership, surfaces server error message on 403); all wired into `BoardPage.jsx` gated by role
+- Board Page Layout (client): board page restructured from one stacked column into a tabbed shell — `features/board/BoardTabs.jsx` (sticky `top-14`, Options/Dates/Map, coral active underline via framer-motion `layoutId`, `font-mono` count badges = options count / my free days / location pins); `pages/BoardPage.jsx` owns `activeTab` (defaults to `options`) and renders one panel at a time
+- Board Page Header (client): `BoardHeader` reworked into a command bar — owner gets the primary coral `LockDecisionButton` (now a compact button + popover picker, no longer a card) and a "Manage" toggle for the inline `BoardManageMenu` disclosure (`BoardSettingsForm` + `ParticipantList`); non-owner gets a compact `ClaimOwnershipButton`; decided state renders a mint success strip with the locked option title
+- Dates Tab Calendar (client): `AvailabilityGrid` reworked from a 30-row list into a month calendar — month navigation (prev bounded at the current month), Sun–Sat grid, day cells carry my status tint + `free/total` count, today marked in coral, past days muted and non-interactive; tapping a day marks my availability directly and also selects it — the detail panel below shows free/busy names plus a `Mark free`/`Mark busy` control for the selected day. Optimistic apply, rollback, pending guard, and live `availability:updated` behavior all unchanged — no service, socket, or store changes
+- Dates Removal (server + client): `DELETE /boards/:boardId/availability/:date` — new `removeAvailabilitySchema` (Zod), `availabilityService.removeAvailability` (board + participant checks, `findOneAndDelete` on the normalized date, idempotent), `availabilityController.removeAvailability`, route wired with `requireAuth`; new `availability:removed` socket event via `emitAvailabilityRemoved`; client `services/availability.js` `clearAvailability`, `useBoardSocket` handles `availability:removed` → `removeAvailability` reducer; `AvailabilityGrid` detail panel gains a `Clear` button (optimistic removal + rollback), shown only when the selected day carries my status
+- Board Page Sections (client): `features/map/BoardMapSection.jsx` extracts the map section out of the page; `OptionsList`/`AvailabilityGrid` headings trimmed so the tab bar owns the section title (availability grid capped at `max-h-[60vh]` with its own scroll); `BoardMap` marker `divIcon` colors switched from hardcoded hex to `var(--accent-primary)`/`var(--accent-secondary)` tokens
 
 ## In Progress
 
@@ -47,7 +52,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Review pass — all feature modules and owner controls complete
+- Review pass — all feature modules and owner controls complete; board page layout restyled (tabs + header command bar)
 
 ## Open Questions
 
@@ -57,7 +62,7 @@ Update this file after every meaningful implementation change.
 - Duplicate participant joins not prevented (accepted tradeoff)
 - Session cookies `secure: false` in dev — must be `true` in production
 - Participant emails never exposed to other participants (NFR7)
-- Availability grid date range: currently defaults to today through the next 30 days (client-side). The backend accepts any date via PUT and has no restriction on date range. The spec never defines what range the grid should cover — this is an open question for product decision
+- Availability date range: the Dates tab now shows one month at a time (current month by default, navigable forward) and blocks past days client-side. The backend still accepts any date via PUT with no restriction. The spec never defines what range the grid should cover — still an open question for product decision (e.g. should past months be reachable?)
 - Whether a 'decided' board should block new votes/options/comments isn't resolved — enforcing that would mean touching the already-built voting/options/comment services. Logged as open question, no enforcement implemented in this pass
 
 ## Architecture Decisions
@@ -86,7 +91,7 @@ Update this file after every meaningful implementation change.
 - Module 7 client: availability grid defaults to 30-day range (today + next 30 days); the backend accepts any date via PUT — date range is a product decision, not enforced server-side
 - Module 7 client: `GET /boards/:boardId/participants` endpoint added (service → controller → route, `requireAuth`) to resolve participant IDs to display names; reuses existing Participant model
 - Module 7 client: `aggregateAvailability` is a pure function in `utils/` — not computed inline in components; returns per-date `{ free: [names], busy: [names], freeCount, totalCount }`
-- Module 7 client: optimistic toggle cycle is free→busy→free (no "remove" state from the UI perspective); rollback restores exact prior state (including null → removeAvailability when no prior entry existed)
+- Module 7 client: optimistic toggle cycle is free→busy→free, with an explicit `Clear` action now covering removal (added with the Dates Removal work); rollback restores exact prior state (including null → removeAvailability when no prior entry existed)
 - Module 7 client: `upsertAvailability` reducer matches by (participantId, date-normalized-to-day) to handle date string variations; `removeAvailability` filters by same compound key
 - Module 8: availability per-toggle write (not bulk save) — each grid click upserts one slot + broadcasts live immediately
 - Module 8: `PUT /boards/:boardId/availability` uses `findOneAndUpdate` with `upsert: true` on compound unique index (boardId, participantId, date) — no duplicates on repeated calls
@@ -136,6 +141,15 @@ Update this file after every meaningful implementation change.
 - Module 9 (client): `setBoard` reducer merges partial updates (Object.assign) instead of full replace — enables `board:decided` socket handler to patch status/decidedOptionId without losing other board fields
 - Module 9 (client): `useBoardSocket` uses `useSelector` for session + `useNavigate` for redirect — `participant:removed` handler clears session and redirects to landing if the removed participant is the current user
 - Module 9 (client): owner controls rendered in a 2-column grid section below availability grid — `LockDecisionButton`, `BoardSettingsForm`, `ParticipantList` gated by `session.role === 'owner'`; `ClaimOwnershipButton` visible to non-owners only
+- Board page layout: tabbed shell (Options/Dates/Map) with one panel visible at a time replaces the stacked column; `BoardPage` owns `activeTab`, the tab bar is the section title (panels no longer repeat it)
+- Board page owner controls: live in the header command bar, not a page section — compact `LockDecisionButton` popover + inline `BoardManageMenu` disclosure. Deliberately NOT a modal, since `ui-context.md`'s modal spec is still unfinalized
+- Board page tabs: no new Redux state — counts derive from existing `board.options` / `board.availability` / `board.*Locations`
+- `BoardMapSection` extraction keeps `pages/BoardPage.jsx` free of inline section JSX
+- `BoardMap` marker colors use CSS variables now — leaflet `divIcon` HTML can't take Tailwind classes, so tokens are the only way to keep it off hardcoded hex
+- Dates tab: month calendar (Sun–Sat) — tapping a day toggles my availability and selects it in one action (one tap to mark), with the detail panel mirroring the selected day's names and offering the same toggle
+- Dates tab: past days are muted and non-interactive, and prev-month navigation stops at the current month; both are client-side constraints only, the backend still accepts any date
+- Dates removal: `DELETE /boards/:boardId/availability/:date` deletes the participant's slot then emits `availability:removed` with `{ participantId, date }` — delete-then-emit keeps invariant 5 (sockets announce confirmed state); the call is idempotent (a missing slot still returns success), so a double-tap or retry can't error
+- Dates removal (client): reuses the existing `removeAvailability` reducer, so no new state shape — `availability:removed` patches local state exactly like the optimistic rollback path already did
 
 ## Open Items Going Into Review
 
@@ -178,3 +192,6 @@ Update this file after every meaningful implementation change.
 - Module 9 (server): `requireAuth` DB lookup verified — participant removed from DB returns 401 on next request; ownership claim demotion reflected immediately
 - Module 9 (server): `PATCH /boards/:id/lock` verified — sets status + decidedOptionId, emits `board:decided`; `DELETE /boards/:id/participants/:participantId` verified — deletes participant, emits `participant:removed`, self-removal rejected (400)
 - Module 9 (client): `npm run build` + `npm run lint` pass; `BoardSettingsForm`, `ParticipantList`, `LockDecisionButton`, `ClaimOwnershipButton` created and wired into BoardPage; `useBoardSocket` extended with `board:decided` + `participant:removed` handlers; `setBoard` reducer merges partial updates; `services/board.js` extended with `fetchParticipants`, `lockDecision`, `removeParticipant`, `updateBoard`, `claimOwnership`
+- Dates removal (server): verified via curl against the dev server — PUT creates a slot, `DELETE /availability/:date` returns `{ removed: true }`, GET then returns an empty list, a repeated DELETE is idempotent (200), an invalid date returns the standard 400 validation shape, and an unauthenticated DELETE returns 401 (unknown route control returns 404)
+- Dates tab (client): `npm run build` + `npm run lint` pass; month calendar grid + selected-day detail panel implemented (tap a day to mark); calendar date math verified via node (leading blanks, month lengths, past-day comparison); no server/socket/store changes
+- Board page layout (client): `npm run build` + `npm run lint` pass; tab shell, header command bar, and manage disclosure implemented; `LockDecisionButton` made conditional-hook-safe (all hooks before early return); no server/socket/store changes
