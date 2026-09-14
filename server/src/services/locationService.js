@@ -68,6 +68,7 @@ export const listLocations = async (boardId, participantId) => {
   const optionLocations = optionsWithLocation
     .filter((o) => o.locationId)
     .map((o) => ({
+      optionId: o._id.toString(),
       lat: o.locationId.lat,
       lng: o.locationId.lng,
       placeName: o.locationId.placeName ?? null,
