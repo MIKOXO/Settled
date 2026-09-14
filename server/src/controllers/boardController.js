@@ -39,6 +39,7 @@ export const createBoard = catchAsync(async (req, res) => {
         inviteUrl,
         decisionDeadline: board.decisionDeadline ?? null,
         optionsOwnerOnly: board.optionsOwnerOnly ?? false,
+        decidedOptionId: board.decidedOptionId?.toString() ?? null,
         createdAt: board.createdAt,
       },
       ownerId,
@@ -60,6 +61,7 @@ export const getBoardById = catchAsync(async (req, res) => {
       inviteToken: board.inviteToken,
       decisionDeadline: board.decisionDeadline ?? null,
       optionsOwnerOnly: board.optionsOwnerOnly ?? false,
+      decidedOptionId: board.decidedOptionId?.toString() ?? null,
       createdAt: board.createdAt,
     },
     error: null,
@@ -80,8 +82,36 @@ export const updateBoard = catchAsync(async (req, res) => {
       inviteToken: board.inviteToken,
       decisionDeadline: board.decisionDeadline ?? null,
       optionsOwnerOnly: board.optionsOwnerOnly ?? false,
+      decidedOptionId: board.decidedOptionId?.toString() ?? null,
       createdAt: board.createdAt,
     },
+    error: null,
+  });
+});
+
+export const lockDecision = catchAsync(async (req, res) => {
+  const { optionId } = req.body ?? {};
+  const board = await boardService.lockDecision(req.params.id, optionId ?? null);
+  res.status(200).json({
+    success: true,
+    data: {
+      id: board._id,
+      status: board.status,
+      decidedOptionId: board.decidedOptionId?.toString() ?? null,
+    },
+    error: null,
+  });
+});
+
+export const removeParticipant = catchAsync(async (req, res) => {
+  const participant = await boardService.removeParticipant(
+    req.params.id,
+    req.params.participantId,
+    req.participant.id,
+  );
+  res.status(200).json({
+    success: true,
+    data: { participantId: participant._id.toString() },
     error: null,
   });
 });

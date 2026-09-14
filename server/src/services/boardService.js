@@ -3,6 +3,7 @@ import { Board } from '../models/Board.js';
 import { Participant } from '../models/Participant.js';
 import { env } from '../config/env.js';
 import { createAppError } from '../utils/AppError.js';
+import { emitBoardDecided, emitParticipantRemoved } from '../sockets/boardEmitter.js';
 
 export const createBoard = async (input) => {
   const session = await mongoose.startSession();
@@ -80,4 +81,41 @@ export const updateBoard = async (boardId, patch) => {
     throw createAppError('Board not found', 404);
   }
   return board;
+};
+
+export const lockDecision = async (boardId, optionId = null) => {
+  const updates = { status: 'decided' };
+  if (optionId) {
+    updates.decidedOptionId = optionId;
+  }
+
+  const board = await Board.findByIdAndUpdate(boardId, updates, {
+    returnDocument: 'after',
+    runValidators: true,
+  });
+  if (!board) {
+    throw createAppError('Board not found', 404);
+  }
+
+  emitBoardDecided(boardId, { decidedOptionId: board.decidedOptionId?.toString() ?? null });
+
+  return board;
+};
+
+export const removeParticipant = async (boardId, participantId, ownerId) => {
+  if (participantId === ownerId) {
+    throw createAppError('Cannot remove yourself', 400);
+  }
+
+  const participant = await Participant.findOneAndDelete({
+    _id: participantId,
+    boardId,
+  });
+  if (!participant) {
+    throw createAppError('Participant not found', 404);
+  }
+
+  emitParticipantRemoved(boardId, { participantId });
+
+  return participant;
 };

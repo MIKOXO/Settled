@@ -16,10 +16,15 @@ export const requireAuth = async (req, _res, next) => {
       throw createAppError('Authentication required', 401);
     }
 
+    const participant = await Participant.findById(payload.sub).lean();
+    if (!participant) {
+      throw createAppError('Authentication required', 401);
+    }
+
     req.participant = {
-      id: payload.sub,
-      boardId: payload.boardId,
-      role: payload.role,
+      id: participant._id.toString(),
+      boardId: participant.boardId?.toString() ?? payload.boardId,
+      role: participant.role,
     };
 
     Participant.findByIdAndUpdate(payload.sub, { lastActiveAt: new Date() }).exec().catch(() => {});

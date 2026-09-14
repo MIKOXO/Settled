@@ -41,6 +41,11 @@ const boardSchema = new Schema(
       default: false,
       required: true,
     },
+    decidedOptionId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Option',
+      default: null,
+    },
   },
   {
     timestamps: { createdAt: true, updatedAt: false },
