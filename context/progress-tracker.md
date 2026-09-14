@@ -4,11 +4,11 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- Client build complete — all feature modules implemented
+- Owner Controls complete — server + client implemented
 
 ## Current Goal
 
-- Module 8 — Map & Location (client/) complete. All FRs now have client-side coverage. Feature build-out done — entering review.
+- Module 9 — Owner Controls (server + client/) complete. All owner-management FRs covered. Feature build-out done — entering review.
 
 ## Completed
 
@@ -32,6 +32,14 @@ Update this file after every meaningful implementation change.
 - Module 6 — Threads/Comments (client/): `services/comments.js` (fetchComments with optional limit/cursor, postComment); `store/boardSlice.js` comments keyed per option (`{ items, hasMore, status, nextCursor }`) + `setComments`/`appendComments`/`addComment` reducers; `hooks/useBoardSocket.js` extended with `comment:added` → addComment (same hook, same lifecycle, one more event); `features/threads/CommentThread.jsx` (collapsed by default, fetch-on-first-open only, comment list with display name + relative timestamp, explicit "load older comments" cursor pagination, loading/failed/empty states); `features/threads/CommentForm.jsx` (post → `addComment` locally with the response, no optimistic prepend since the response IS the reconciled state, inline error on failure); OptionsList comment count is now a toggle button (chevron rotates), message count `font-mono`, `state-success` untouched
 - Module 7 — Availability Grid (client/): `services/availability.js` (fetchAvailability, setAvailability thin wrappers); `services/participants.js` (fetchParticipants thin wrapper for new server endpoint); `store/boardSlice.js` extended with `availability: []` + `participants: []` state, `setAvailability`/`upsertAvailability`/`removeAvailability`/`setParticipants` reducers (upsert matches by participantId+date, remove filters by same); `utils/aggregateAvailability.js` pure function: given raw slots + participants, returns per-date `{ free: [names], busy: [names], freeCount, totalCount }`; `hooks/useBoardSocket.js` extended with `availability:updated` → upsertAvailability (same hook, one more event); `features/availability/AvailabilityGrid.jsx` (30-day date grid from today, each row: date label + aggregate count + toggle button + expand chevron, expanded view shows free/busy participant name tags in respective colors; optimistic toggle (free→busy→free cycle) with snapshot rollback on API failure; pending guard per date; error banner with auto-dismiss); wired into BoardPage below OptionsList; parallel fetch of availability + participants on board load
 - Module 8 — Map & Location (client/): `services/location.js` (fetchLocations, setMyLocation, removeMyLocation, searchPlaces thin wrappers); `store/boardSlice.js` extended with `participantLocations: []` + `optionLocations: []` state, `setLocations`/`upsertParticipantLocation`/`removeParticipantLocation` reducers (upsert matches by participantId); `hooks/useBoardSocket.js` extended with `location:updated` → upsertParticipantLocation + `location:removed` → removeParticipantLocation (same hook, two more events); `features/map/PlaceSearch.jsx` (debounced search input, 400ms debounce, min 3 chars before firing, dropdown results, clear button, click-outside-to-close); `features/map/BoardMap.jsx` (React Leaflet + OSM tiles, custom coral `divIcon` for option pins, mustard `divIcon` for participant pins, legend overlay, click-to-pick mode via `MapClickHandler`); `features/map/LocationOptIn.jsx` (opt-in control: search-or-map pick, disclosure text "Your exact location will be visible to everyone on this board", shows current location with remove button, error/success states); `features/options/ProposeOptionForm.jsx` extended with optional location picker (search-or-map inline, shows selected location with remove, passes `{ lat, lng, placeName, placeSource }` to createOption); `pages/BoardPage.jsx` wired with BoardMap + LocationOptIn section below AvailabilityGrid, parallel fetch of locations on board load; `index.html` updated with Leaflet CSS CDN link; `react-leaflet` + `leaflet` added to dependencies
+- Server requireAuth fix — `middleware/auth.js` now looks up the Participant document fresh from the DB on every request using the JWT's `participantId`, attaches the DB's current `role`/`boardId` to `req.participant` (not the JWT's embedded values). Returns 401 if participant no longer exists. Makes ownership-claim demotion and participant removal take effect immediately.
+- Server Board schema — added `decidedOptionId` (ref Option, nullable) to `models/Board.js`
+- Server `PATCH /boards/:id/lock` — `requireOwner`, optional `{ optionId }` body, sets `board.status = 'decided'` and `decidedOptionId`, emits `board:decided` to the board room
+- Server `DELETE /boards/:id/participants/:participantId` — `requireOwner`, rejects self-removal, deletes Participant doc (votes/comments stay as historical record), emits `participant:removed` to the board room
+- Server `sockets/boardEmitter.js` — emits `board:decided` and `participant:removed` events
+- Server `services/boardService.js` — added `lockDecision` and `removeParticipant` methods
+- Server `controllers/boardController.js` — added `lockDecision` and `removeParticipant` handlers; all board responses now include `decidedOptionId`
+- Module 9 — Owner Controls (client/): `services/board.js` extended with `fetchParticipants`, `lockDecision`, `removeParticipant`, `updateBoard`, `claimOwnership`; `hooks/useBoardSocket.js` extended with `board:decided` → `setBoard` merge + `participant:removed` → clear session + redirect if self; `store/boardSlice.js` `setBoard` reducer now merges partial updates; `features/board/BoardSettingsForm.jsx` (owner-only: edit name/type, toggle optionsOwnerOnly); `features/board/ParticipantList.jsx` (owner-only: fetch participants, remove with confirm step); `features/board/LockDecisionButton.jsx` (owner-only: pick option + lock, shows decided state with option title); `features/board/ClaimOwnershipButton.jsx` (non-owner: claim ownership, surfaces server error message on 403); all wired into `BoardPage.jsx` gated by role
 
 ## In Progress
 
@@ -39,7 +47,7 @@ Update this file after every meaningful implementation change.
 
 ## Next Up
 
-- Review & polish — all feature modules complete
+- Review pass — all feature modules and owner controls complete
 
 ## Open Questions
 
@@ -50,6 +58,7 @@ Update this file after every meaningful implementation change.
 - Session cookies `secure: false` in dev — must be `true` in production
 - Participant emails never exposed to other participants (NFR7)
 - Availability grid date range: currently defaults to today through the next 30 days (client-side). The backend accepts any date via PUT and has no restriction on date range. The spec never defines what range the grid should cover — this is an open question for product decision
+- Whether a 'decided' board should block new votes/options/comments isn't resolved — enforcing that would mean touching the already-built voting/options/comment services. Logged as open question, no enforcement implemented in this pass
 
 ## Architecture Decisions
 
@@ -62,7 +71,7 @@ Update this file after every meaningful implementation change.
 - Backend 3-tier: Routes → Controllers → Services; sockets call same services
 - Module 1: `.env` env vars — B2/Brevo/Nominatim are optional, gracefully skipped if absent
 - Module 2: `Participant.boardId` deferred (set after Board creation) — circular dependency
-- Module 3: session JWT board-scoped; `requireAuth` relies on token scope, no per-request board re-check
+- Module 3: session JWT board-scoped; `requireAuth` now looks up participant from DB on every request (not relying on JWT embedded role) — ensures ownership-claim demotion and participant removal take effect immediately
 - Module 3: `sendMagicLinkEmail` is fire-and-forget; claim-ownership reassigns in one call (no transaction)
 - Module 4: `cookie` package (v1+) exports `parseCookie` not `parse` in ESM
 - Module 5: `optionsOwnerOnly` wired into board PATCH so it's actually toggleable
@@ -121,14 +130,19 @@ Update this file after every meaningful implementation change.
 - Module 8 (client): `upsertParticipantLocation` matches by `participantId` (unique per `ParticipantLocation` model) — one location per participant, upserted on PUT
 - Module 8 (client): Leaflet CSS loaded via CDN in `index.html` — avoids bundler import issues with leaflet's CSS path resolution in Vite
 - Module 8 (client): `react-leaflet` + `leaflet` added to `package.json` dependencies — Leaflet is not code-split since the map is a board-level section, not a route-level page
+- Module 9 (server): `Board.decidedOptionId` nullable ref to Option — set by `PATCH /boards/:id/lock`, used by client to display decided option title
+- Module 9 (server): `PATCH /boards/:id/lock` and `DELETE /boards/:id/participants/:participantId` are `requireOwner` — both emit socket events (`board:decided`, `participant:removed`) to the board room
+- Module 9 (server): removed participant's votes/comments stay as historical record — `removeParticipant` only deletes the Participant doc, no cascade
+- Module 9 (client): `setBoard` reducer merges partial updates (Object.assign) instead of full replace — enables `board:decided` socket handler to patch status/decidedOptionId without losing other board fields
+- Module 9 (client): `useBoardSocket` uses `useSelector` for session + `useNavigate` for redirect — `participant:removed` handler clears session and redirects to landing if the removed participant is the current user
+- Module 9 (client): owner controls rendered in a 2-column grid section below availability grid — `LockDecisionButton`, `BoardSettingsForm`, `ParticipantList` gated by `session.role === 'owner'`; `ClaimOwnershipButton` visible to non-owners only
 
 ## Open Items Going Into Review
 
 - ShareInvite screen question: the share invite flow renders at `/share/:inviteToken` — needs UX review for whether it should auto-redirect to the board for logged-in users or always show the invite link
 - Multi-board recovery ambiguity: the recovery flow (`/recover`) doesn't disambiguate which board a participant should land on if they've participated in multiple boards — currently just redirects to their most recent board
 - Availability grid date range: defaults to today + 30 days on the client; the backend accepts any date via PUT with no restriction — product decision needed on whether the grid should show a configurable range or allow scrolling
-- Map center fallback: when no locations exist, the map defaults to NYC coordinates (40.7128, -74.006) — should probably use the board creator's location or a generic default
-- Leaflet tile attribution: uses OSM default tiles — acceptable for MVP but may want custom tile styling for the dark theme in the future
+- 'Decided' board enforcement: whether a decided board should block new votes/options/comments — would require touching already-built services; not enforced in this pass
 
 ## Session Notes
 
@@ -161,3 +175,6 @@ Update this file after every meaningful implementation change.
 - Module 5 (client): `applyVoteUpdate` semantics verified at reducer level (replace-not-increment, all-option isLeading sync, snapshot rollback, unknown-id no-op); `vote:updated` verified live across two socket clients — like propagates counts/score to the remote client, same-reaction second click removes (like 1→0), like→dislike flip updates both counts (0/1), leading moves live incl. tie (both leading) and flip-to-single-leader, own broadcast received, enriched-list `vote` field matches the participant's current vote (`null`/`like`/`dislike`); forced API failures rejected (invalid value 400, bogus option id 404) so optimistic rollback runs (23/23 assertions); `npm run build` + `npm run lint` pass
 - Module 6 (client): reducer semantics verified — setComments stores page+cursor, appendComments merges at tail keeping newest-first, addComment prepends + sets authoritative commentCount (no increment), own echo dedupes (no double comment/render, no double count), unopened-thread entry created idle, collapsed-card count updated from payload; live two-client — `comment:added` received with body + display name + authoritative count (no email), list endpoint count synced, pagination 20+5 with non-overlapping pages + nextCursor, both pages merged by the real reducers to 25, latest comment lands at top, blank comment → 400 so the form shows its error (30/30 assertions); `npm run build` + `npm run lint` pass
 - Module 8 (client): `npm run build` + `npm run lint` pass; `react-leaflet` + `leaflet` installed, Leaflet CSS loaded via CDN; `services/location.js` created (fetchLocations, setMyLocation, removeMyLocation, searchPlaces); `store/boardSlice.js` extended with `participantLocations`/`optionLocations` state + 3 reducers; `useBoardSocket.js` extended with `location:updated` + `location:removed` handlers; `features/map/` created with PlaceSearch (debounced 400ms, min 3 chars, dropdown, click-outside-close), BoardMap (React Leaflet + OSM tiles, coral/mustard divIcon markers, legend, selectable mode), LocationOptIn (search/map pick, disclosure text, remove button); ProposeOptionForm extended with optional location picker (search/map inline, passes location to createOption); BoardPage wired with Map section + parallel location fetch
+- Module 9 (server): `requireAuth` DB lookup verified — participant removed from DB returns 401 on next request; ownership claim demotion reflected immediately
+- Module 9 (server): `PATCH /boards/:id/lock` verified — sets status + decidedOptionId, emits `board:decided`; `DELETE /boards/:id/participants/:participantId` verified — deletes participant, emits `participant:removed`, self-removal rejected (400)
+- Module 9 (client): `npm run build` + `npm run lint` pass; `BoardSettingsForm`, `ParticipantList`, `LockDecisionButton`, `ClaimOwnershipButton` created and wired into BoardPage; `useBoardSocket` extended with `board:decided` + `participant:removed` handlers; `setBoard` reducer merges partial updates; `services/board.js` extended with `fetchParticipants`, `lockDecision`, `removeParticipant`, `updateBoard`, `claimOwnership`

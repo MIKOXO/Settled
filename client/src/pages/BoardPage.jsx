@@ -21,6 +21,10 @@ import {
 } from '../store/boardSlice';
 import { setSession } from '../store/sessionSlice';
 import BoardHeader from '../features/board/BoardHeader';
+import BoardSettingsForm from '../features/board/BoardSettingsForm';
+import ParticipantList from '../features/board/ParticipantList';
+import LockDecisionButton from '../features/board/LockDecisionButton';
+import ClaimOwnershipButton from '../features/board/ClaimOwnershipButton';
 import OptionsList from '../features/options/OptionsList';
 import ProposeOptionForm from '../features/options/ProposeOptionForm';
 import AvailabilityGrid from '../features/availability/AvailabilityGrid';
@@ -136,6 +140,14 @@ const BoardPage = () => {
         <ProposeOptionForm />
         <OptionsList />
         <AvailabilityGrid boardId={boardId} />
+
+        <ClaimOwnershipButton boardId={boardId} />
+
+        <section className="mt-8 grid gap-6 sm:grid-cols-2">
+          <LockDecisionButton />
+          <BoardSettingsForm />
+          <ParticipantList boardId={boardId} />
+        </section>
 
         <section className="mt-8">
           <div className="mb-3 flex items-center justify-between">
