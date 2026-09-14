@@ -14,7 +14,11 @@ const boardSlice = createSlice({
   },
   reducers: {
     setBoard: (state, action) => {
-      state.board = action.payload;
+      if (state.board) {
+        Object.assign(state.board, action.payload);
+      } else {
+        state.board = action.payload;
+      }
     },
     setOptions: (state, action) => {
       state.options = action.payload;
