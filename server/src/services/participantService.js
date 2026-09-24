@@ -58,7 +58,8 @@ export const joinBoard = async (inviteToken, input, existingParticipantId = null
 };
 
 export const recoverRequest = async (email) => {
-  const participant = await Participant.findOne({ email: email.toLowerCase() });
+  const participant = await Participant.findOne({ email: email.toLowerCase() })
+    .sort({ lastActiveAt: -1 });
   if (participant) {
     const recoveryToken = signRecoveryToken(participant._id);
     sendMagicLinkEmail(email, recoveryToken).catch(() => {});
