@@ -45,6 +45,8 @@ Update this file after every meaningful implementation change.
 - Dates Tab Calendar (client): `AvailabilityGrid` reworked from a 30-row list into a month calendar — month navigation (prev bounded at the current month), Sun–Sat grid, day cells carry my status tint + `free/total` count, today marked in coral, past days muted and non-interactive; tapping a day marks my availability directly and also selects it — the detail panel below shows free/busy names plus a `Mark free`/`Mark busy` control for the selected day. Optimistic apply, rollback, pending guard, and live `availability:updated` behavior all unchanged — no service, socket, or store changes
 - Dates Removal (server + client): `DELETE /boards/:boardId/availability/:date` — new `removeAvailabilitySchema` (Zod), `availabilityService.removeAvailability` (board + participant checks, `findOneAndDelete` on the normalized date, idempotent), `availabilityController.removeAvailability`, route wired with `requireAuth`; new `availability:removed` socket event via `emitAvailabilityRemoved`; client `services/availability.js` `clearAvailability`, `useBoardSocket` handles `availability:removed` → `removeAvailability` reducer; `AvailabilityGrid` detail panel gains a `Clear` button (optimistic removal + rollback), shown only when the selected day carries my status
 - Board Page Sections (client): `features/map/BoardMapSection.jsx` extracts the map section out of the page; `OptionsList`/`AvailabilityGrid` headings trimmed so the tab bar owns the section title (availability grid capped at `max-h-[60vh]` with its own scroll); `BoardMap` marker `divIcon` colors switched from hardcoded hex to `var(--accent-primary)`/`var(--accent-secondary)` tokens
+- Review fix (server): `recoverRequest` now sorts by `lastActiveAt: -1` — multi-board participants recover onto their most recently active board, not Mongo's arbitrary first match
+- Review fix (client): `useBoardSocket` selects only `session.id` (not the whole session object) and depends on it — socket listeners no longer churn on unrelated session changes like an ownership-claim role flip
 
 ## In Progress
 
@@ -64,6 +66,7 @@ Update this file after every meaningful implementation change.
 - Participant emails never exposed to other participants (NFR7)
 - Availability date range: the Dates tab now shows one month at a time (current month by default, navigable forward) and blocks past days client-side. The backend still accepts any date via PUT with no restriction. The spec never defines what range the grid should cover — still an open question for product decision (e.g. should past months be reachable?)
 - Whether a 'decided' board should block new votes/options/comments isn't resolved — enforcing that would mean touching the already-built voting/options/comment services. Logged as open question, no enforcement implemented in this pass
+- Multi-board recovery: `recoverRequest` resolves the participant by email sorted by `lastActiveAt` desc, so a participant active on multiple boards always lands on the single most-recent one — a proper fix (e.g. listing all matching boards for the user to pick) is deferred, not solved in this pass
 
 ## Architecture Decisions
 
@@ -154,7 +157,7 @@ Update this file after every meaningful implementation change.
 ## Open Items Going Into Review
 
 - ShareInvite screen question: the share invite flow renders at `/share/:inviteToken` — needs UX review for whether it should auto-redirect to the board for logged-in users or always show the invite link
-- Multi-board recovery ambiguity: the recovery flow (`/recover`) doesn't disambiguate which board a participant should land on if they've participated in multiple boards — currently just redirects to their most recent board
+- Multi-board recovery ambiguity: the recovery flow (`/recover`) now routes a participant to the board where they were most recently active (`lastActiveAt` desc) instead of Mongo's arbitrary first match — but it still doesn't let them choose when they're active on multiple boards (see Open Questions)
 - Availability grid date range: defaults to today + 30 days on the client; the backend accepts any date via PUT with no restriction — product decision needed on whether the grid should show a configurable range or allow scrolling
 - 'Decided' board enforcement: whether a decided board should block new votes/options/comments — would require touching already-built services; not enforced in this pass
 
