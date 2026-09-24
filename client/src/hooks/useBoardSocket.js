@@ -16,7 +16,7 @@ import { clearSession } from '../store/sessionSlice';
 const useBoardSocket = (boardId) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const session = useSelector((state) => state.session);
+  const sessionId = useSelector((state) => state.session?.id);
 
   useEffect(() => {
     const socket = getSocket();
@@ -57,7 +57,7 @@ const useBoardSocket = (boardId) => {
     };
 
     const handleParticipantRemoved = (payload) => {
-      if (session && payload.participantId === session.id) {
+      if (sessionId && payload.participantId === sessionId) {
         dispatch(clearSession());
         navigate('/');
       }
@@ -82,7 +82,7 @@ const useBoardSocket = (boardId) => {
       socket.off('board:decided', handleBoardDecided);
       socket.off('participant:removed', handleParticipantRemoved);
     };
-  }, [boardId, dispatch, navigate, session]);
+  }, [boardId, dispatch, navigate, sessionId]);
 };
 
 export default useBoardSocket;
