@@ -2,7 +2,9 @@ import { Board } from '../models/Board.js';
 import { Participant } from '../models/Participant.js';
 import { createAppError } from '../utils/AppError.js';
 import { verifyToken, signSessionToken, signRecoveryToken } from '../utils/tokens.js';
-import { sendMagicLinkEmail } from '../utils/email.js';
+import { sendEmail } from '../utils/email.js';
+import { buildRecoveryEmail } from '../utils/emailTemplates.js';
+import { env } from '../config/env.js';
 
 const INACTIVITY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -58,12 +60,27 @@ export const joinBoard = async (inviteToken, input, existingParticipantId = null
 };
 
 export const recoverRequest = async (email) => {
-  const participant = await Participant.findOne({ email: email.toLowerCase() })
-    .sort({ lastActiveAt: -1 });
-  if (participant) {
+  const participants = await Participant.find({ email: email.toLowerCase() })
+    .populate('boardId', 'name type typeLabel')
+    .lean();
+
+  const boards = [];
+  for (const participant of participants) {
+    if (!participant.boardId) continue;
+
     const recoveryToken = signRecoveryToken(participant._id);
-    sendMagicLinkEmail(email, recoveryToken).catch(() => {});
+    boards.push({
+      name: participant.boardId.name,
+      type: participant.boardId.type ?? null,
+      typeLabel: participant.boardId.typeLabel ?? null,
+      url: `${env.CLIENT_URL}/recover?token=${recoveryToken}`,
+    });
   }
+
+  if (boards.length === 0) return;
+
+  const { subject, html, text } = buildRecoveryEmail({ boards });
+  sendEmail(email, subject, html, text).catch(() => {});
 };
 
 export const recover = async (token) => {

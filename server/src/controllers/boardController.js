@@ -1,6 +1,8 @@
 import { catchAsync } from '../utils/catchAsync.js';
 import { signSessionToken, signRecoveryToken } from '../utils/tokens.js';
-import { sendMagicLinkEmail } from '../utils/email.js';
+import { sendEmail } from '../utils/email.js';
+import { buildBoardCreatedEmail } from '../utils/emailTemplates.js';
+import { env } from '../config/env.js';
 import { createBoardSchema, updateBoardSchema } from '../validators/board.js';
 import * as boardService from '../services/boardService.js';
 
@@ -24,7 +26,14 @@ export const createBoard = catchAsync(async (req, res) => {
   setSessionCookie(res, sessionToken);
 
   const recoveryToken = signRecoveryToken(ownerId);
-  sendMagicLinkEmail(input.creatorEmail, recoveryToken).catch(() => {});
+  const recoveryUrl = `${env.CLIENT_URL}/recover?token=${recoveryToken}`;
+  const { subject, html, text } = buildBoardCreatedEmail({
+    boardName: board.name,
+    board: { type: board.type ?? null, typeLabel: board.typeLabel ?? null },
+    inviteUrl,
+    recoveryUrl,
+  });
+  sendEmail(input.creatorEmail, subject, html, text).catch(() => {});
 
   res.status(201).json({
     success: true,

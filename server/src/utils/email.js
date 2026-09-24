@@ -3,22 +3,28 @@ import { env } from '../config/env.js';
 
 const BREVO_API = 'https://api.brevo.com/v3/smtp/email';
 
-export const sendMagicLinkEmail = async (email, recoveryToken) => {
+const parseSender = (value) => {
+  const match = String(value).match(/^([^<]*)<([^>]+)>$/);
+  if (match) {
+    const name = match[1].trim();
+    return { email: match[2].trim(), ...(name ? { name } : {}) };
+  }
+  return { email: String(value).trim() };
+};
+
+export const sendEmail = async (to, subject, htmlContent, textContent) => {
   if (!env.BREVO_API_KEY || !env.BREVO_SENDER_EMAIL) return;
 
-  const recoveryUrl = `${env.CLIENT_URL}/recover?token=${recoveryToken}`;
+  const sender = parseSender(env.BREVO_SENDER_EMAIL);
 
   await axios.post(
     BREVO_API,
     {
-      sender: { email: env.BREVO_SENDER_EMAIL },
-      to: [{ email }],
-      subject: 'Recover your Settled session',
-      htmlContent: `
-        <p>You requested a recovery link for Settled.</p>
-        <p><a href="${recoveryUrl}">Click here to recover your session</a></p>
-        <p>This link expires in 15 minutes.</p>
-      `,
+      sender,
+      to: [{ email: to }],
+      subject,
+      htmlContent,
+      textContent,
     },
     {
       headers: {
