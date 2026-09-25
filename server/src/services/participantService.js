@@ -73,7 +73,7 @@ export const recoverRequest = async (email) => {
       name: participant.boardId.name,
       type: participant.boardId.type ?? null,
       typeLabel: participant.boardId.typeLabel ?? null,
-      url: `${env.CLIENT_URL}/recover?token=${recoveryToken}`,
+      url: `${env.CLIENT_URL}/recover/confirm?token=${recoveryToken}`,
     });
   }
 
@@ -85,7 +85,7 @@ export const recoverRequest = async (email) => {
 
 export const recover = async (token) => {
   const payload = verifyToken(token);
-  if (payload.type !== 'recovery') {
+  if (payload.type !== 'recovery' && payload.type !== 'welcome') {
     throw createAppError('Invalid recovery token', 401);
   }
 

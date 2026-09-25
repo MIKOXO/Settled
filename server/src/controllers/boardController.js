@@ -1,5 +1,5 @@
 import { catchAsync } from '../utils/catchAsync.js';
-import { signSessionToken, signRecoveryToken } from '../utils/tokens.js';
+import { signSessionToken, signBoardWelcomeToken } from '../utils/tokens.js';
 import { sendEmail } from '../utils/email.js';
 import { buildBoardCreatedEmail } from '../utils/emailTemplates.js';
 import { env } from '../config/env.js';
@@ -25,13 +25,13 @@ export const createBoard = catchAsync(async (req, res) => {
   const sessionToken = signSessionToken(ownerId, board._id, 'owner');
   setSessionCookie(res, sessionToken);
 
-  const recoveryToken = signRecoveryToken(ownerId);
-  const recoveryUrl = `${env.CLIENT_URL}/recover?token=${recoveryToken}`;
+  const welcomeToken = signBoardWelcomeToken(ownerId);
+  const welcomeUrl = `${env.CLIENT_URL}/recover/confirm?token=${welcomeToken}`;
   const { subject, html, text } = buildBoardCreatedEmail({
     boardName: board.name,
     board: { type: board.type ?? null, typeLabel: board.typeLabel ?? null },
     inviteUrl,
-    recoveryUrl,
+    welcomeUrl,
   });
   sendEmail(input.creatorEmail, subject, html, text).catch(() => {});
 

@@ -71,7 +71,7 @@ const typeTag = (label) => `
 
 const boardTypeLabel = (board) => board.typeLabel || board.type || null;
 
-export const buildBoardCreatedEmail = ({ boardName, inviteUrl, recoveryUrl, board }) => {
+export const buildBoardCreatedEmail = ({ boardName, inviteUrl, welcomeUrl, board }) => {
   const subject = `Your board '${boardName}' is ready`;
   const safeName = escapeHtml(boardName);
   const tag = board ? boardTypeLabel(board) : null;
@@ -81,8 +81,7 @@ export const buildBoardCreatedEmail = ({ boardName, inviteUrl, recoveryUrl, boar
     ${safeTag ? `<p style="margin:0 0 12px;font-family:${FONT_STACK};">${typeTag(safeTag)}</p>` : ''}
     <h1 style="margin:0 0 8px;font-family:${FONT_STACK};font-size:22px;font-weight:700;line-height:28px;color:${BRAND.text};">${safeName}</h1>
     <p style="margin:0 0 28px;font-family:${FONT_STACK};font-size:15px;line-height:22px;color:${BRAND.muted};">Welcome to Settled. Your board is live &mdash; open it when you're ready to decide, or share the link below to bring people in.</p>
-    ${primaryButton('Open your board', escapeHtml(recoveryUrl))}
-    <p style="margin:16px 0 0;font-family:${FONT_STACK};font-size:12px;line-height:18px;color:${BRAND.muted};">This recovery link expires in 15 minutes.</p>
+    ${primaryButton('Open your board', escapeHtml(welcomeUrl))}
     <div style="border-bottom:1px solid ${BRAND.border};margin:28px 0 20px;"></div>
     <p style="margin:0 0 6px;font-family:${FONT_STACK};font-size:13px;line-height:19px;color:${BRAND.muted};">Private invite link &mdash; share this so people can join:</p>
     <p style="margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;color:${BRAND.text};background-color:${BRAND.pageBg};border-radius:8px;padding:12px 14px;word-break:break-all;overflow-wrap:break-word;">${escapeHtml(inviteUrl)}</p>
@@ -94,11 +93,9 @@ export const buildBoardCreatedEmail = ({ boardName, inviteUrl, recoveryUrl, boar
     `Welcome to Settled. "${boardName}" is live and ready for decisions.`,
     '',
     'Open your board:',
-    recoveryUrl,
+    welcomeUrl,
     `Private invite link \u2014 share this so people can join:`,
     inviteUrl,
-    '',
-    'This recovery link expires in 15 minutes.',
   ].join('\n');
 
   return { subject, html, text };

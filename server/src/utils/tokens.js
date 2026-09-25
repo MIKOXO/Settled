@@ -4,6 +4,7 @@ import { createAppError } from './AppError.js';
 
 const SESSION_EXPIRY = '30d';
 const RECOVERY_EXPIRY = '15m';
+const WELCOME_EXPIRY = '7d';
 
 export const signSessionToken = (participantId, boardId, role) =>
   jwt.sign(
@@ -17,6 +18,13 @@ export const signRecoveryToken = (participantId) =>
     { sub: participantId, type: 'recovery' },
     env.JWT_SECRET,
     { expiresIn: RECOVERY_EXPIRY },
+  );
+
+export const signBoardWelcomeToken = (participantId) =>
+  jwt.sign(
+    { sub: participantId, type: 'welcome' },
+    env.JWT_SECRET,
+    { expiresIn: WELCOME_EXPIRY },
   );
 
 export const verifyToken = (token) => {
