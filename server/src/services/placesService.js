@@ -1,34 +1,125 @@
 import axios from 'axios';
 import { env } from '../config/env.js';
 import { createAppError } from '../utils/AppError.js';
+import { createTtlCache } from '../utils/ttlCache.js';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 
-export const searchPlaces = async (query) => {
+const REVERSE_CACHE_TTL_MS = 10 * 60 * 1000;
+const COORDINATE_PRECISION = 5;
+
+const DETAIL_SOURCES = {
+  openingHours: ['opening_hours'],
+  phone: ['phone', 'contact:phone'],
+  website: ['website', 'contact:website'],
+  cuisine: ['cuisine'],
+  wheelchair: ['wheelchair'],
+};
+
+const reverseCache = createTtlCache({ ttlMs: REVERSE_CACHE_TTL_MS });
+
+const coordinateKey = (lat, lng) =>
+  `${lat.toFixed(COORDINATE_PRECISION)},${lng.toFixed(COORDINATE_PRECISION)}`;
+
+const requireNominatim = (feature) => {
   if (!env.NOMINATIM_USER_AGENT) {
-    throw createAppError('Place search is not configured', 503);
+    throw createAppError(feature, 503);
+  }
+};
+
+const pickDetails = (extratags) => {
+  const details = {};
+  if (!extratags) return details;
+
+  for (const [detail, sources] of Object.entries(DETAIL_SOURCES)) {
+    for (const source of sources) {
+      const value = extratags[source];
+      if (value) {
+        details[detail] = String(value);
+        break;
+      }
+    }
   }
 
-  const response = await axios.get(`${NOMINATIM_BASE}/search`, {
-    params: {
-      q: query,
-      format: 'json',
-      limit: 10,
-      addressdetails: 0,
-      extratags: 0,
-      namedetails: 0,
-    },
-    headers: {
-      'User-Agent': env.NOMINATIM_USER_AGENT,
-    },
+  return details;
+};
+
+/** Place shape for coordinates with no OSM feature behind them. */
+const emptyPlace = (lat, lng) => ({
+  osmType: null,
+  osmId: null,
+  name: null,
+  category: null,
+  type: null,
+  displayName: null,
+  lat,
+  lng,
+  address: null,
+  details: {},
+});
+
+/** Trims a Nominatim jsonv2 object down to the fields the client renders. */
+const toPlace = (item, lat, lng) => ({
+  osmType: item.osm_type ?? null,
+  osmId: item.osm_id ?? null,
+  name: item.name ?? null,
+  category: item.category ?? null,
+  type: item.type ?? null,
+  displayName: item.display_name ?? null,
+  lat: Number(item.lat ?? lat),
+  lng: Number(item.lon ?? lng),
+  address: item.address ?? null,
+  details: pickDetails(item.extratags),
+});
+
+const request = (path, params) =>
+  axios.get(`${NOMINATIM_BASE}${path}`, {
+    params,
+    headers: { 'User-Agent': env.NOMINATIM_USER_AGENT },
     timeout: 5000,
   });
 
-  const results = response.data.map((item) => ({
-    name: item.display_name,
-    lat: parseFloat(item.lat),
-    lng: parseFloat(item.lon),
-  }));
+export const searchPlaces = async (query) => {
+  requireNominatim('Place search is not configured');
 
-  return results;
+  const response = await request('/search', {
+    q: query,
+    format: 'jsonv2',
+    limit: 10,
+    addressdetails: 1,
+    extratags: 1,
+  });
+
+  return response.data.map((item) =>
+    toPlace(item, parseFloat(item.lat), parseFloat(item.lon)),
+  );
+};
+
+export const reversePlace = async (lat, lng) => {
+  requireNominatim('Place lookup is not configured');
+
+  const key = coordinateKey(lat, lng);
+  const cached = reverseCache.get(key);
+  if (cached) {
+    return { place: cached, cacheStatus: 'hit' };
+  }
+
+  const response = await request('/reverse', {
+    lat,
+    // Nominatim's reverse endpoint names the longitude param `lon`; our own
+    // query param stays `lng` to match the rest of the app's coordinates.
+    lon: lng,
+    zoom: 18,
+    format: 'jsonv2',
+    addressdetails: 1,
+    extratags: 1,
+  });
+
+  // jsonv2 /reverse resolves to a single object; /search to an array.
+  const place = response.data
+    ? toPlace(response.data, lat, lng)
+    : emptyPlace(lat, lng);
+  reverseCache.set(key, place);
+
+  return { place, cacheStatus: 'miss' };
 };
