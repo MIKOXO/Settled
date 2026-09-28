@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Loader2 } from 'lucide-react';
@@ -34,6 +34,18 @@ const BoardPage = () => {
   const dispatch = useDispatch();
   const status = useSelector((state) => state.board.status);
   const [activeTab, setActiveTab] = useState('options');
+  const [optionPrefill, setOptionPrefill] = useState(null);
+  const prefillNonce = useRef(0);
+
+  // Cross-tab handoff: the map tab proposes a place, the options tab receives
+  // it. BoardPage owns the handoff state so neither feature imports the other.
+  // Fields stay flat (with a fresh `nonce`) so ProposeOptionForm can tell one
+  // handoff from the next by identity alone.
+  const handleProposePlace = (place) => {
+    prefillNonce.current += 1;
+    setOptionPrefill({ ...place, nonce: prefillNonce.current });
+    setActiveTab('options');
+  };
 
   useSocket();
   useBoardSocket(boardId);
@@ -145,14 +157,16 @@ const BoardPage = () => {
           <div role="tabpanel" aria-label={TAB_LABELS[activeTab]} className="mt-6">
             {activeTab === 'options' && (
               <>
-                <ProposeOptionForm />
+                <ProposeOptionForm prefill={optionPrefill} />
                 <OptionsList />
               </>
             )}
 
             {activeTab === 'dates' && <AvailabilityGrid boardId={boardId} />}
 
-            {activeTab === 'map' && <BoardMapSection boardId={boardId} />}
+            {activeTab === 'map' && (
+              <BoardMapSection boardId={boardId} onProposePlace={handleProposePlace} />
+            )}
           </div>
         </div>
       </main>
