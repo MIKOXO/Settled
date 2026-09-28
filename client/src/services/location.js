@@ -11,3 +11,6 @@ export const removeMyLocation = (boardId) =>
 
 export const searchPlaces = (query) =>
   api.get('/places/search', { params: { q: query } });
+
+export const reversePlace = (lat, lng, { signal } = {}) =>
+  api.get('/places/reverse', { params: { lat, lng }, signal });
