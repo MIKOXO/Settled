@@ -12,11 +12,11 @@ import BoardMap from '../map/BoardMap';
 const inputClasses =
   'w-full rounded-btn border border-border bg-surface px-3.5 py-2.5 font-sans text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent transition-colors duration-200';
 
-const ProposeOptionForm = () => {
+const ProposeOptionForm = ({ prefill }) => {
   const dispatch = useDispatch();
   const { boardId } = useParams();
   const session = useSelector((state) => state.session);
-  const optionsOwnerOnly = useSelector((state) => state.board.board?.optionsOwnerOnly ?? false);
+  const optionsOwnerOnly = useSelector((state) => state.board.optionsOwnerOnly ?? false);
   const canCreate = !optionsOwnerOnly || session?.role === 'owner';
 
   const [title, setTitle] = useState('');
@@ -29,6 +29,24 @@ const ProposeOptionForm = () => {
   const [submitting, setSubmitting] = useState(false);
 
   const { blockError, setBlockError, clearBlockError } = useFormErrors();
+
+  // A place handed over from the map tab's details panel. BoardPage mints a
+  // fresh `prefill` object per handoff, so re-proposing the same place still
+  // re-applies. The seed is null, not `prefill`: this form unmounts whenever
+  // the tab changes, so it often mounts *already holding* a prefill and must
+  // still apply it.
+  const [seenPrefill, setSeenPrefill] = useState(null);
+  if (prefill && prefill !== seenPrefill) {
+    setSeenPrefill(prefill);
+    setLocation({
+      lat: prefill.lat,
+      lng: prefill.lng,
+      placeName: prefill.placeName ?? null,
+      placeSource: prefill.placeSource ?? 'manual',
+    });
+    setLocationMode(null);
+    if (prefill.title) setTitle(prefill.title);
+  }
 
   if (!canCreate) {
     return (

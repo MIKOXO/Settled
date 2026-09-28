@@ -12,11 +12,18 @@ import {
   AttributionControl,
 } from 'react-leaflet';
 import { divIcon, latLngBounds } from 'leaflet';
-import { Map, Satellite, Navigation, Trophy, MessageSquare, ThumbsUp, ExternalLink } from 'lucide-react';
+import { Map, Satellite, Navigation } from 'lucide-react';
 import { fetchLocations } from '../../services/location';
 
 const STANDARD_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const SATELLITE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+// Free Esri reference cartography, drawn on top of the imagery so place names
+// stay readable in satellite mode. If the service is unreachable the tiles
+// simply never paint — the imagery underneath is unaffected.
+const SATELLITE_LABELS_URL =
+  'https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}';
+const BLANK_TILE =
+  'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
 const makeOptionIcon = (isLeading) => divIcon({
   className: '',
@@ -146,14 +153,14 @@ const FitBounds = ({ bounds }) => {
   return null;
 };
 
-const BoardMap = ({ onMapClick, selectable = false }) => {
+const BoardMap = ({ onMapClick, onSelectPin, selectable = false }) => {
   const { boardId } = useParams();
   const participants = useSelector((state) => state.board.participants);
   const options = useSelector((state) => state.board.options);
   const session = useSelector((state) => state.session);
   const [participantLocations, setParticipantLocations] = useState([]);
   const [optionLocations, setOptionLocations] = useState([]);
-  const [satellite, setSatellite] = useState(true);
+  const [satellite, setSatellite] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -217,8 +224,9 @@ const BoardMap = ({ onMapClick, selectable = false }) => {
 
   const tileUrl = satellite ? SATELLITE_URL : STANDARD_URL;
   const tileAttrib = satellite
-    ? 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ'
-    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
+    ? 'Imagery &copy; Esri, Maxar, Earthstar Geographics'
+    : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+  const picksOnClick = Boolean(onMapClick);
 
   return (
     <div className={`relative overflow-hidden rounded-card border border-border ${selectable ? 'cursor-crosshair' : ''}`}>
@@ -231,13 +239,23 @@ const BoardMap = ({ onMapClick, selectable = false }) => {
         attributionControl={false}
       >
         <TileLayer key={satellite ? 'sat' : 'std'} url={tileUrl} attribution={tileAttrib} />
+        {satellite && (
+          <TileLayer
+            key="sat-labels"
+            url={SATELLITE_LABELS_URL}
+            attribution="Labels &copy; Esri"
+            opacity={0.9}
+            errorTileUrl={BLANK_TILE}
+            maxNativeZoom={19}
+          />
+        )}
         <ZoomControl position="topright" />
         <AttributionControl position="bottomright" prefix={false} />
 
         <Geolocate />
         <CurrentPositionMarker />
         {bounds && <FitBounds bounds={bounds} />}
-        {selectable && <MapClickHandler onMapClick={onMapClick} />}
+        {(selectable || picksOnClick) && <MapClickHandler onMapClick={onMapClick} />}
 
         {optionLocations.map((loc, i) => {
           const option = optionByOptionId[loc.optionId];
@@ -245,104 +263,23 @@ const BoardMap = ({ onMapClick, selectable = false }) => {
           const icon = makeOptionIcon(isLeading);
 
           return (
-            <Marker key={`opt-${loc.optionId ?? i}`} position={[loc.lat, loc.lng]} icon={icon}>
-              <Popup maxWidth={280} minWidth={220} className="board-map-popup">
-                <div style={{ fontFamily: 'var(--font-sans)' }}>
-                  {option?.photoUrl && (
-                    <div style={{ margin: '-9px -20px 10px', overflow: 'hidden', borderRadius: '8px 8px 0 0' }}>
-                      <img
-                        src={option.photoUrl}
-                        alt={option.title}
-                        style={{ width: '100%', height: 120, objectFit: 'cover', display: 'block' }}
-                      />
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                    <div style={{
-                      flex: 1,
-                      minWidth: 0,
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                        {isLeading && (
-                          <span style={{ color: 'var(--accent-secondary)', fontSize: 12 }}>
-                            <Trophy style={{ width: 14, height: 14, display: 'inline' }} />
-                          </span>
-                        )}
-                        <h3 style={{
-                          fontFamily: 'var(--font-heading)',
-                          fontSize: 14,
-                          fontWeight: 700,
-                          color: 'var(--text-primary)',
-                          margin: 0,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}>
-                          {option?.title ?? loc.placeName ?? 'Option'}
-                        </h3>
-                      </div>
-
-                      {option?.notes && (
-                        <p style={{
-                          fontSize: 12,
-                          color: 'var(--text-muted)',
-                          margin: '4px 0 0',
-                          lineHeight: 1.4,
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}>
-                          {option.notes}
-                        </p>
-                      )}
-
-                      {!option && loc.placeName && (
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '4px 0 0' }}>
-                          {loc.placeName}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {option && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      marginTop: 10,
-                      paddingTop: 8,
-                      borderTop: '1px solid var(--border-default)',
-                      fontSize: 12,
-                      color: 'var(--text-muted)',
-                    }}>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <ThumbsUp style={{ width: 12, height: 12 }} />
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                          {option.score ?? 0}
-                        </span>
-                      </span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <MessageSquare style={{ width: 12, height: 12 }} />
-                        {option.commentCount ?? 0}
-                      </span>
-                      {option.link && (
-                        <a
-                          href={option.link}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{ display: 'flex', alignItems: 'center', gap: 3, color: 'var(--accent-primary)', textDecoration: 'none', marginLeft: 'auto' }}
-                        >
-                          <ExternalLink style={{ width: 12, height: 12 }} />
-                          Link
-                        </a>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </Popup>
-            </Marker>
+            <Marker
+              key={`opt-${loc.optionId ?? i}`}
+              position={[loc.lat, loc.lng]}
+              icon={icon}
+              eventHandlers={{
+                click: () =>
+                  onSelectPin?.({
+                    name: option?.title ?? loc.placeName ?? null,
+                    displayName: loc.placeName ?? null,
+                    lat: loc.lat,
+                    lng: loc.lng,
+                    address: null,
+                    details: {},
+                    source: 'option',
+                  }),
+              }}
+            />
           );
         })}
 
@@ -352,56 +289,23 @@ const BoardMap = ({ onMapClick, selectable = false }) => {
           const icon = isMe ? PARTICIPANT_ICON : makeParticipantIcon(name);
 
           return (
-            <Marker key={`p-${loc.participantId}`} position={[loc.lat, loc.lng]} icon={icon}>
-              <Popup maxWidth={220} minWidth={160}>
-                <div style={{ fontFamily: 'var(--font-sans)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: '50%',
-                      background: 'var(--accent-secondary)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}>
-                      <span style={{ fontFamily: 'var(--font-heading)', fontSize: 13, fontWeight: 700, color: 'var(--bg-surface)' }}>
-                        {name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div style={{ minWidth: 0 }}>
-                      <p style={{
-                        fontFamily: 'var(--font-heading)',
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: 'var(--text-primary)',
-                        margin: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {isMe ? 'You' : name}
-                      </p>
-                      {loc.label && (
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: '2px 0 0' }}>
-                          {loc.label}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <p style={{
-                    fontSize: 11,
-                    color: 'var(--text-muted)',
-                    margin: '8px 0 0',
-                    paddingTop: 6,
-                    borderTop: '1px solid var(--border-default)',
-                  }}>
-                    Shared their location with the board
-                  </p>
-                </div>
-              </Popup>
-            </Marker>
+            <Marker
+              key={`p-${loc.participantId}`}
+              position={[loc.lat, loc.lng]}
+              icon={icon}
+              eventHandlers={{
+                click: () =>
+                  onSelectPin?.({
+                    name: isMe ? 'You' : name,
+                    displayName: loc.label ?? null,
+                    lat: loc.lat,
+                    lng: loc.lng,
+                    address: null,
+                    details: {},
+                    source: 'participant',
+                  }),
+              }}
+            />
           );
         })}
       </MapContainer>

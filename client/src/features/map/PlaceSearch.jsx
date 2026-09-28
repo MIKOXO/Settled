@@ -55,9 +55,14 @@ const PlaceSearch = ({ onSelect, placeholder = 'Search for a place...' }) => {
   }, []);
 
   const handleSelect = (result) => {
-    setQuery(result.name);
+    setQuery(result.name ?? result.displayName ?? '');
     setOpen(false);
-    onSelect({ lat: result.lat, lng: result.lng, placeName: result.name });
+    onSelect({
+      lat: result.lat,
+      lng: result.lng,
+      placeName: result.displayName ?? result.name ?? null,
+      place: result,
+    });
   };
 
   const handleClear = () => {
@@ -92,17 +97,29 @@ const PlaceSearch = ({ onSelect, placeholder = 'Search for a place...' }) => {
 
       {open && results.length > 0 && (
         <ul className="absolute z-50 mt-1 max-h-56 w-full overflow-y-auto rounded-card border border-border bg-surface shadow-lg">
-          {results.map((result, i) => (
-            <li key={`${result.lat}-${result.lng}-${i}`}>
-              <button
-                type="button"
-                onClick={() => handleSelect(result)}
-                className="w-full px-3.5 py-2.5 text-left font-sans text-sm text-text-primary hover:bg-surface-2 transition-colors duration-150"
-              >
-                {result.name}
-              </button>
-            </li>
-          ))}
+          {results.map((result, i) => {
+            const title = result.name ?? result.displayName;
+            const sub = result.displayName !== title ? result.displayName : null;
+
+            return (
+              <li key={`${result.osmType ?? 'x'}-${result.osmId ?? i}-${i}`}>
+                <button
+                  type="button"
+                  onClick={() => handleSelect(result)}
+                  className="w-full px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-surface-2"
+                >
+                  <span className="block truncate font-sans text-sm text-text-primary">
+                    {title}
+                  </span>
+                  {sub && (
+                    <span className="mt-0.5 block truncate font-sans text-xs text-text-muted">
+                      {sub}
+                    </span>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
 
