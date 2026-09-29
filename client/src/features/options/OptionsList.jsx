@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, ExternalLink, MapPin, MessageSquare } from 'lucide-react';
@@ -27,6 +27,9 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId }) => {
   return (
     <motion.article
       layout={reduceMotion ? false : 'position'}
+      transition={reduceMotion
+        ? undefined
+        : { type: 'spring', stiffness: 500, damping: 40 }}
       className={`relative rounded-card border bg-surface p-4 transition-colors duration-200 ${
         isLeading ? 'border-accent-secondary/50' : 'border-border'
       }`}
@@ -123,6 +126,16 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId }) => {
 
 const OptionsList = ({ onViewOnMap }) => {
   const options = useSelector((state) => state.board.options);
+
+  // Live ranking: cards glide up/down as scores change. The server's order
+  // (createdAt desc) stays authoritative in the store — this is a derived
+  // view-order only, so nothing about the store shape or socket flow moves.
+  // Ties keep their relative order via the stable sort.
+  const ranked = useMemo(
+    () => [...options].sort((a, b) => b.score - a.score),
+    [options],
+  );
+
   // Ties can flag several options leading at once — the traveling layoutId
   // glow is only mounted when exactly one option leads, so it never has
   // duplicates fighting over the same id.
@@ -144,7 +157,7 @@ const OptionsList = ({ onViewOnMap }) => {
   return (
     <section aria-label="Options">
       <div className="space-y-3">
-        {options.map((option) => (
+        {ranked.map((option) => (
           <OptionCard
             key={option.id}
             option={option}
