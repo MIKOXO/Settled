@@ -1,10 +1,16 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { CheckCircle2, Settings, Tags } from 'lucide-react';
+import { CheckCircle2, Settings } from 'lucide-react';
 import LockDecisionButton from './LockDecisionButton';
 import ClaimOwnershipButton from './ClaimOwnershipButton';
 import BoardManageMenu from './BoardManageMenu';
 
+/**
+ * The board bar sits directly on the page background, flush between the app
+ * nav and the tab bar — one chrome band instead of nav + card + tabs. The
+ * owner's consequential action (lock) is the only solid coral element;
+ * Manage is quiet ghost text beside it.
+ */
 const BoardHeader = ({ boardId }) => {
   const board = useSelector((state) => state.board.board);
   const options = useSelector((state) => state.board.options);
@@ -20,40 +26,38 @@ const BoardHeader = ({ boardId }) => {
   const decidedOption = options.find((o) => o.id === board.decidedOptionId);
 
   return (
-    <header className="rounded-card border border-border bg-surface p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="truncate font-heading text-2xl font-bold text-text-primary sm:text-3xl">
+    <header className="pb-3 pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1.5">
+          <h1 className="truncate font-heading text-xl font-bold text-text-primary sm:text-2xl">
             {name}
           </h1>
 
-          <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-2">
-            {typeName && (
-              <span className="flex items-center gap-1.5 font-sans text-sm text-text-muted">
-                <Tags className="h-4 w-4" />
-                {typeName}
-              </span>
-            )}
-            <span className="flex items-center gap-1.5 font-sans text-sm text-text-muted">
-              <span
-                className={`h-2 w-2 rounded-full ${decided ? 'bg-success' : 'bg-accent-secondary'}`}
-              />
-              <span className="capitalize">{status}</span>
+          {typeName && (
+            <span className="shrink-0 rounded-btn bg-surface px-2 py-0.5 font-sans text-xs text-text-muted">
+              {typeName}
             </span>
-          </div>
+          )}
+
+          <span className="flex shrink-0 items-center gap-1.5 font-sans text-xs text-text-muted">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${decided ? 'bg-success' : 'bg-accent-secondary'}`}
+            />
+            <span className="capitalize">{status}</span>
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           {isOwner && <LockDecisionButton />}
           {isOwner && (
             <button
               type="button"
               onClick={() => setManageOpen((prev) => !prev)}
               aria-expanded={manageOpen}
-              className={`flex items-center gap-2 rounded-btn border px-3.5 py-2 font-sans text-sm transition-colors duration-200 ${
+              className={`flex items-center gap-1.5 rounded-btn px-2.5 py-2 font-sans text-sm transition-colors duration-200 ${
                 manageOpen
-                  ? 'border-accent text-accent'
-                  : 'border-border text-text-muted hover:border-accent/50 hover:text-text-primary'
+                  ? 'text-accent'
+                  : 'text-text-muted hover:text-text-primary'
               }`}
             >
               <Settings className="h-4 w-4" />
@@ -65,7 +69,7 @@ const BoardHeader = ({ boardId }) => {
       </div>
 
       {decided && (
-        <div className="mt-4 flex items-center gap-3 rounded-btn border border-success/30 bg-success/10 px-4 py-3">
+        <div className="mt-3 flex items-center gap-3 rounded-card border border-success/30 bg-success/10 px-4 py-2.5">
           <CheckCircle2 className="h-5 w-5 shrink-0 text-success" />
           <div className="min-w-0">
             <p className="font-sans text-xs font-medium text-success">Decision locked</p>

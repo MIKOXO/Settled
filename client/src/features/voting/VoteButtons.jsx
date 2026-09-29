@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { motion, useReducedMotion } from 'framer-motion';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { castVote, removeVote } from '../../services/votes';
 import { applyVoteUpdate } from '../../store/boardSlice';
@@ -26,9 +27,10 @@ const VoteButton = ({
   onClick,
 }) => {
   const Icon = value === 'like' ? ThumbsUp : ThumbsDown;
+  const reduceMotion = useReducedMotion();
 
   return (
-    <button
+    <motion.button
       type="button"
       onClick={() => onClick(value)}
       disabled={disabled}
@@ -37,17 +39,19 @@ const VoteButton = ({
       title={
         errored ? "Couldn't update — try again" : `${count} ${value}s`
       }
+      whileTap={reduceMotion ? undefined : { scale: 0.92 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 25 }}
       className={`flex items-center gap-1.5 rounded-btn border px-2.5 py-1.5 transition-colors duration-150 ${
         errored
           ? 'border-error/70 text-error'
           : active
-            ? 'border-accent text-accent'
+            ? 'border-accent bg-accent/10 text-accent'
             : 'border-border text-text-muted hover:border-accent/50 hover:text-text-primary'
       } ${disabled ? 'cursor-wait opacity-60' : ''}`}
     >
       <Icon className="h-4 w-4" />
       <span className="font-mono text-xs">{count}</span>
-    </button>
+    </motion.button>
   );
 };
 

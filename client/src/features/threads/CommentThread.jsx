@@ -86,7 +86,7 @@ const CommentThread = ({ option, open }) => {
   };
 
   return (
-    <div className="mt-4 border-t border-border pt-4">
+    <div className="mt-3 border-t border-border pt-4">
       <CommentForm optionId={option.id} />
 
       {status === 'loading' && (
@@ -109,18 +109,18 @@ const CommentThread = ({ option, open }) => {
       )}
 
       {items.length > 0 && (
-        <ul className="mt-3 space-y-3">
+        <ul className="mt-4 space-y-2">
           {items.map((comment) => (
-            <li key={comment.id} className="rounded-btn border border-border bg-surface-2/60 px-3.5 py-2.5">
+            <li key={comment.id} className="rounded-btn bg-surface-2/50 px-3.5 py-2.5">
               <div className="flex items-baseline gap-2">
                 <span className="font-sans text-sm font-medium text-text-primary">
                   {comment.participantName ?? 'Someone'}
                 </span>
-                <time className="font-sans text-xs text-text-muted">
+                <time className="ml-auto shrink-0 font-sans text-xs text-text-muted/60">
                   {relativeTime(comment.createdAt)}
                 </time>
               </div>
-              <p className="mt-0.5 whitespace-pre-line font-sans text-sm text-text-muted">
+              <p className="mt-1 whitespace-pre-line font-sans text-sm leading-relaxed text-text-primary/90">
                 {comment.body}
               </p>
             </li>

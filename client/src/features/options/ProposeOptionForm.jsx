@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Loader2, Lock, Plus, MapPin, X } from 'lucide-react';
 import { createOption, uploadOptionPhoto, fetchOptions } from '../../services/options';
 import { addOption, setOptions } from '../../store/boardSlice';
@@ -18,7 +19,9 @@ const ProposeOptionForm = ({ prefill }) => {
   const session = useSelector((state) => state.session);
   const optionsOwnerOnly = useSelector((state) => state.board.optionsOwnerOnly ?? false);
   const canCreate = !optionsOwnerOnly || session?.role === 'owner';
+  const reduceMotion = useReducedMotion();
 
+  const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [link, setLink] = useState('');
@@ -34,7 +37,8 @@ const ProposeOptionForm = ({ prefill }) => {
   // fresh `prefill` object per handoff, so re-proposing the same place still
   // re-applies. The seed is null, not `prefill`: this form unmounts whenever
   // the tab changes, so it often mounts *already holding* a prefill and must
-  // still apply it.
+  // still apply it. A handoff also opens the collapsed form so the carried
+  // place is actually visible.
   const [seenPrefill, setSeenPrefill] = useState(null);
   if (prefill && prefill !== seenPrefill) {
     setSeenPrefill(prefill);
@@ -46,16 +50,15 @@ const ProposeOptionForm = ({ prefill }) => {
     });
     setLocationMode(null);
     if (prefill.title) setTitle(prefill.title);
+    setOpen(true);
   }
 
   if (!canCreate) {
     return (
-      <div className="flex items-center gap-3 rounded-btn border border-border bg-surface px-4 py-3">
-        <Lock className="h-4 w-4 shrink-0 text-text-muted" />
-        <p className="font-sans text-sm text-text-muted">
-          Only the board owner can add options.
-        </p>
-      </div>
+      <p className="mt-6 flex items-center justify-center gap-2 font-sans text-sm text-text-muted/70">
+        <Lock className="h-4 w-4 shrink-0" />
+        Only the board owner can add options.
+      </p>
     );
   }
 
@@ -120,6 +123,7 @@ const ProposeOptionForm = ({ prefill }) => {
       setLocation(null);
       setLocationMode(null);
       e.target.photo.value = '';
+      setOpen(false);
     } catch (err) {
       setBlockError(err.message || 'Could not add the option');
     } finally {
@@ -127,16 +131,44 @@ const ProposeOptionForm = ({ prefill }) => {
     }
   };
 
+  if (!open) {
+    return (
+      <div className="mt-6">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-btn border border-dashed border-border px-3.5 py-2 font-sans text-sm text-text-muted transition-colors duration-200 hover:border-accent/60 hover:text-text-primary"
+        >
+          <Plus className="h-4 w-4" />
+          Add an option
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <form
+    <motion.form
       onSubmit={handleSubmit}
-      className="rounded-card border border-border bg-surface p-5 sm:p-6"
+      initial={reduceMotion ? false : { opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.18 }}
+      className="mt-6 rounded-card border border-border bg-surface p-5 sm:p-6"
     >
-      <div className="mb-4 flex items-center gap-2">
-        <Plus className="h-4 w-4 text-accent" />
-        <h2 className="font-heading text-lg font-semibold text-text-primary">
-          Propose an option
-        </h2>
+      <div className="mb-4 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Plus className="h-4 w-4 text-accent" />
+          <h2 className="font-heading text-lg font-semibold text-text-primary">
+            Propose an option
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          aria-label="Close the form"
+          className="flex h-8 w-8 items-center justify-center rounded-btn text-text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-text-primary"
+        >
+          <X className="h-4 w-4" />
+        </button>
       </div>
 
       <ErrorBanner message={blockError} onDismiss={clearBlockError} />
@@ -155,6 +187,7 @@ const ProposeOptionForm = ({ prefill }) => {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Saturday night kayaking on the lake"
             className={inputClasses}
+            autoFocus
           />
         </div>
 
@@ -311,7 +344,7 @@ const ProposeOptionForm = ({ prefill }) => {
           </>
         )}
       </button>
-    </form>
+    </motion.form>
   );
 };
 
