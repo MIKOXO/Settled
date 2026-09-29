@@ -146,7 +146,9 @@ const BoardPage = () => {
         </div>
       </nav>
 
-      <main className="py-6">
+      {/* Nav → board bar → tab bar read as one unit: no vertical gap between
+          them, only the tab panel below breathes. */}
+      <main className="pb-12">
         <div className="mx-auto max-w-5xl px-4">
           <BoardHeader boardId={boardId} />
         </div>
@@ -154,11 +156,11 @@ const BoardPage = () => {
         <BoardTabs active={activeTab} onChange={setActiveTab} />
 
         <div className="mx-auto max-w-5xl px-4">
-          <div role="tabpanel" aria-label={TAB_LABELS[activeTab]} className="mt-6">
+          <div role="tabpanel" aria-label={TAB_LABELS[activeTab]} className="mt-5">
             {activeTab === 'options' && (
               <>
+                <OptionsList onViewOnMap={() => setActiveTab('map')} />
                 <ProposeOptionForm prefill={optionPrefill} />
-                <OptionsList />
               </>
             )}
 
