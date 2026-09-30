@@ -26,6 +26,39 @@ Rules:
 - Success green is semantic only — live/active indicators, confirmation states, focus rings. It never appears as a decorative or brand accent (no icon fills, no gradients, no illustrative use).
 - No hardcoded hex values in components — always reference these tokens.
 
+### Token format (required when adding or editing a color token)
+
+Tailwind can only inject an alpha modifier into a color it can decompose into
+channels. A token defined as a bare `var(--x)` string silently produces **no CSS
+at all** for every `/opacity` utility built on it (`bg-accent/15`,
+`border-success/50`, `hover:bg-surface-2/60`, …) — the class is dropped from the
+bundle rather than erroring, so the gap is easy to miss.
+
+Each token therefore ships two custom properties in `index.css`:
+
+| Purpose         | Example                     |
+| --------------- | --------------------------- |
+| Solid value     | `--accent-primary: #FF6B4A` |
+| Channel twin    | `--accent-primary-rgb: 255 107 74` |
+
+`tailwind.config.js` wraps the **channel twin**:
+
+```js
+accent: 'rgb(var(--accent-primary-rgb) / <alpha-value>)',
+```
+
+Rules for tokens:
+
+- The solid var stays authoritative for raw CSS and Leaflet `divIcon` markup,
+  which read `--x` directly. Never remove it in favour of the channel twin.
+- `border` is the one exception: `--border-default` is *itself* translucent
+  (`rgba(245,241,232,0.12)`), and channel form would make solid `border-border`
+  opaque. It stays `var(--border-default)`, which also means `border-border/50`
+  and similar are meaningless — write plain `border-border` instead.
+- When adding an alpha utility, confirm it reached `dist/assets/*.css`. A slash
+  class missing from the bundle means the token format is wrong, not that the
+  class is unused.
+
 ## Typography
 
 | Role      | Font              | Variable         |
