@@ -26,8 +26,9 @@ import OptionsList from '../features/options/OptionsList';
 import ProposeOptionForm from '../features/options/ProposeOptionForm';
 import AvailabilityGrid from '../features/availability/AvailabilityGrid';
 import BoardMapSection from '../features/map/BoardMapSection';
+import ParticipantList from '../features/board/ParticipantList';
 
-const TAB_LABELS = { options: 'Options', dates: 'Dates', map: 'Map' };
+const TAB_LABELS = { options: 'Options', dates: 'Dates', map: 'Map', people: 'People' };
 
 const BoardPage = () => {
   const { boardId } = useParams();
@@ -36,6 +37,8 @@ const BoardPage = () => {
   const [activeTab, setActiveTab] = useState('options');
   const [optionPrefill, setOptionPrefill] = useState(null);
   const prefillNonce = useRef(0);
+  const [mapFocus, setMapFocus] = useState(null);
+  const focusNonce = useRef(0);
 
   // Cross-tab handoff: the map tab proposes a place, the options tab receives
   // it. BoardPage owns the handoff state so neither feature imports the other.
@@ -45,6 +48,14 @@ const BoardPage = () => {
     prefillNonce.current += 1;
     setOptionPrefill({ ...place, nonce: prefillNonce.current });
     setActiveTab('options');
+  };
+
+  // And the same in reverse: the People tab sends a participant to the map.
+  // The nonce lets the map re-focus on someone it is already focused on.
+  const handleViewPersonOnMap = (participantId) => {
+    focusNonce.current += 1;
+    setMapFocus({ participantId, nonce: focusNonce.current });
+    setActiveTab('map');
   };
 
   useSocket();
@@ -134,7 +145,7 @@ const BoardPage = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <nav className="sticky top-0 z-50 border-b border-border bg-surface/80 backdrop-blur-md">
+      <nav className="border-b border-border bg-surface">
         <div className="mx-auto flex h-14 max-w-5xl items-center px-4">
           <Link
             to="/"
@@ -167,7 +178,15 @@ const BoardPage = () => {
             {activeTab === 'dates' && <AvailabilityGrid boardId={boardId} />}
 
             {activeTab === 'map' && (
-              <BoardMapSection boardId={boardId} onProposePlace={handleProposePlace} />
+              <BoardMapSection
+                boardId={boardId}
+                onProposePlace={handleProposePlace}
+                focusParticipant={mapFocus}
+              />
+            )}
+
+            {activeTab === 'people' && (
+              <ParticipantList boardId={boardId} onViewOnMap={handleViewPersonOnMap} />
             )}
           </div>
         </div>
