@@ -1,5 +1,4 @@
 import { useEffect, useState, useMemo } from 'react';
-import { useParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import {
   MapContainer,
@@ -13,7 +12,6 @@ import {
 } from 'react-leaflet';
 import { divIcon, latLngBounds } from 'leaflet';
 import { Map, Satellite, Navigation } from 'lucide-react';
-import { fetchLocations } from '../../services/location';
 
 const STANDARD_URL = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
 const SATELLITE_URL = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
@@ -40,34 +38,27 @@ const makeOptionIcon = (isLeading) => divIcon({
   popupAnchor: [0, isLeading ? -52 : -46],
 });
 
-const PARTICIPANT_ICON = divIcon({
+/**
+ * People pins. `highlighted` adds a coral ring — the map tab's focus treatment
+ * for whoever the People tab handed over, since a plain marker at city zoom can
+ * be easy to lose among the option pins.
+ */
+const makeParticipantIcon = (name, highlighted = false) => divIcon({
   className: '',
   html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
-    <div style="width:26px;height:26px;border-radius:50%;background:var(--accent-secondary);border:3px solid var(--bg-surface);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--bg-surface)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-    </div>
-    <div style="margin-top:2px;padding:2px 6px;border-radius:4px;background:var(--bg-surface);border:1px solid var(--border-default);white-space:nowrap;font-family:var(--font-sans);font-size:11px;font-weight:600;color:var(--text-primary);box-shadow:0 1px 4px rgba(0,0,0,.3)">
-      You
-    </div>
-  </div>`,
-  iconSize: [26, 42],
-  iconAnchor: [13, 42],
-  popupAnchor: [0, -42],
-});
-
-const makeParticipantIcon = (name) => divIcon({
-  className: '',
-  html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
-    <div style="width:26px;height:26px;border-radius:50%;background:var(--accent-secondary);border:3px solid var(--bg-surface);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)">
-      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--bg-surface)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+    <div style="position:relative;width:26px;height:26px">
+      ${highlighted ? '<div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--accent-primary);background:rgba(255,107,74,0.14);box-shadow:0 2px 10px rgba(0,0,0,.45)"></div>' : ''}
+      <div style="position:absolute;inset:0;border-radius:50%;background:var(--accent-secondary);border:3px solid var(--bg-surface);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--bg-surface)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      </div>
     </div>
     <div style="margin-top:2px;padding:2px 6px;border-radius:4px;background:var(--bg-surface);border:1px solid var(--border-default);white-space:nowrap;font-family:var(--font-sans);font-size:11px;font-weight:600;color:var(--text-primary);box-shadow:0 1px 4px rgba(0,0,0,.3);max-width:100px;overflow:hidden;text-overflow:ellipsis">
       ${name}
     </div>
   </div>`,
-  iconSize: [26, 42],
-  iconAnchor: [13, 42],
-  popupAnchor: [0, -42],
+  iconSize: highlighted ? [34, 50] : [26, 42],
+  iconAnchor: highlighted ? [17, 50] : [13, 42],
+  popupAnchor: [0, highlighted ? -50 : -42],
 });
 
 const MapClickHandler = ({ onMapClick }) => {
@@ -153,33 +144,28 @@ const FitBounds = ({ bounds }) => {
   return null;
 };
 
-const BoardMap = ({ onMapClick, onSelectPin, selectable = false }) => {
-  const { boardId } = useParams();
-  const participants = useSelector((state) => state.board.participants);
-  const options = useSelector((state) => state.board.options);
-  const session = useSelector((state) => state.session);
-  const [participantLocations, setParticipantLocations] = useState([]);
-  const [optionLocations, setOptionLocations] = useState([]);
-  const [satellite, setSatellite] = useState(false);
+/** Flies to a single pin handed over from another tab, at least close enough to read. */
+const FlyToFocus = ({ focus }) => {
+  const map = useMap();
 
   useEffect(() => {
-    let cancelled = false;
+    if (!focus) return;
+    map.flyTo([focus.lat, focus.lng], Math.max(map.getZoom(), 14), { duration: 0.9 });
+  }, [map, focus]);
 
-    const load = async () => {
-      try {
-        const res = await fetchLocations(boardId);
-        if (!cancelled) {
-          setParticipantLocations(res.participantLocations ?? []);
-          setOptionLocations(res.optionLocations ?? []);
-        }
-      } catch {
-        // silent
-      }
-    };
+  return null;
+};
 
-    load();
-    return () => { cancelled = true; };
-  }, [boardId]);
+const BoardMap = ({ onMapClick, onSelectPin, selectable = false, focus = null }) => {
+  const participants = useSelector((state) => state.board.participants);
+  const options = useSelector((state) => state.board.options);
+  const myId = useSelector((state) => state.session?.id);
+  // Pins come from the store, which BoardPage hydrates on load and the socket
+  // handlers keep current — the map never runs its own copy of this fetch, so
+  // a location shared a moment ago is on the map immediately.
+  const participantLocations = useSelector((state) => state.board.participantLocations);
+  const optionLocations = useSelector((state) => state.board.optionLocations);
+  const [satellite, setSatellite] = useState(false);
 
   const participantNameMap = useMemo(() => {
     const map = {};
@@ -197,6 +183,21 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false }) => {
     return map;
   }, [options]);
 
+  // A fresh divIcon makes react-leaflet swap the marker's DOM node, so the
+  // icons are built once per real change instead of once per render.
+  const participantIcons = useMemo(() => {
+    const map = {};
+    for (const loc of participantLocations) {
+      const participant = participants.find((p) => p.id === loc.participantId);
+      const isMe = loc.participantId === myId;
+      map[loc.participantId] = makeParticipantIcon(
+        isMe ? 'You' : (participant?.displayName ?? 'Participant'),
+        focus?.participantId === loc.participantId,
+      );
+    }
+    return map;
+  }, [participantLocations, participants, myId, focus?.participantId]);
+
   const allLocations = useMemo(() => {
     const points = [];
     for (const loc of optionLocations) {
@@ -205,11 +206,8 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false }) => {
     for (const loc of participantLocations) {
       points.push([loc.lat, loc.lng]);
     }
-    if (session) {
-      // include user's own location from participantLocations if present
-    }
     return points;
-  }, [optionLocations, participantLocations, session]);
+  }, [optionLocations, participantLocations]);
 
   const bounds = useMemo(() => {
     if (allLocations.length === 0) return null;
@@ -254,7 +252,10 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false }) => {
 
         <Geolocate />
         <CurrentPositionMarker />
-        {bounds && <FitBounds bounds={bounds} />}
+        {/* Focus wins over fit-all: the pin the People tab pointed at is the
+            one thing the user asked to look at. */}
+        {bounds && !focus && <FitBounds bounds={bounds} />}
+        <FlyToFocus focus={focus} />
         {(selectable || picksOnClick) && <MapClickHandler onMapClick={onMapClick} />}
 
         {optionLocations.map((loc, i) => {
@@ -285,14 +286,15 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false }) => {
 
         {participantLocations.map((loc) => {
           const name = participantNameMap[loc.participantId] ?? 'Participant';
-          const isMe = session && loc.participantId === session.id;
-          const icon = isMe ? PARTICIPANT_ICON : makeParticipantIcon(name);
+          const isMe = loc.participantId === myId;
+          const isFocused = focus?.participantId === loc.participantId;
 
           return (
             <Marker
               key={`p-${loc.participantId}`}
               position={[loc.lat, loc.lng]}
-              icon={icon}
+              icon={participantIcons[loc.participantId]}
+              zIndexOffset={isFocused ? 1000 : 0}
               eventHandlers={{
                 click: () =>
                   onSelectPin?.({

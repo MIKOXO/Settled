@@ -1,4 +1,5 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSelector } from 'react-redux';
 import BoardMap from './BoardMap';
 import LocationOptIn from './LocationOptIn';
 import PlaceDetailsPanel from './PlaceDetailsPanel';
@@ -12,10 +13,53 @@ import useSelectedPlace from './useSelectedPlace';
  * is delegated upward to BoardPage via `onProposePlace`, which keeps this
  * feature from reaching into the options feature.
  */
-const BoardMapSection = ({ boardId, onProposePlace }) => {
+const BoardMapSection = ({ boardId, onProposePlace, focusParticipant }) => {
   const { place, status, error, isOpen, selectPlace, inspectCoordinates, clearSelection } =
     useSelectedPlace();
+  const participants = useSelector((state) => state.board.participants);
+  const participantLocations = useSelector((state) => state.board.participantLocations);
   const [sharePrefill, setSharePrefill] = useState(null);
+
+  // A person handed over from the People tab. Coordinates come from the store
+  // — the same pins the map is already drawing — so there is nothing extra to
+  // resolve. A `nonce` keeps repeat handoffs distinguishable.
+  const focusTarget = useMemo(() => {
+    if (!focusParticipant) return null;
+    const loc = participantLocations.find(
+      (l) => l.participantId === focusParticipant.participantId,
+    );
+    if (!loc) return null;
+    return {
+      participantId: loc.participantId,
+      lat: loc.lat,
+      lng: loc.lng,
+      nonce: focusParticipant.nonce,
+    };
+  }, [focusParticipant, participantLocations]);
+
+  // Selects the handed-over pin so the map and the details panel agree on what
+  // is being looked at. Guarded by nonce so a later location update can't
+  // reopen a panel the user has already dismissed.
+  const handledFocus = useRef(null);
+  useEffect(() => {
+    if (!focusTarget || handledFocus.current === focusTarget.nonce) return;
+    const loc = participantLocations.find(
+      (l) => l.participantId === focusParticipant?.participantId,
+    );
+    if (!loc) return;
+
+    handledFocus.current = focusTarget.nonce;
+    selectPlace({
+      name:
+        participants.find((p) => p.id === loc.participantId)?.displayName ?? 'Participant',
+      displayName: loc.label ?? null,
+      lat: loc.lat,
+      lng: loc.lng,
+      address: null,
+      details: {},
+      source: 'participant',
+    });
+  }, [focusTarget, focusParticipant, participantLocations, participants, selectPlace]);
 
   const handleSearchSelect = useCallback(
     (result) => {
@@ -66,6 +110,7 @@ const BoardMapSection = ({ boardId, onProposePlace }) => {
           <BoardMap
             onMapClick={inspectCoordinates}
             onSelectPin={selectPlace}
+            focus={focusTarget}
           />
         </div>
 

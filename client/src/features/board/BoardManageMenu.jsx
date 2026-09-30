@@ -1,8 +1,9 @@
 import { Settings, X } from 'lucide-react';
 import BoardSettingsForm from './BoardSettingsForm';
-import ParticipantList from './ParticipantList';
 
-const BoardManageMenu = ({ boardId, onClose }) => {
+// Settings only — participant management lives in the People tab so the whole
+// board can see the roster, not just the owner.
+const BoardManageMenu = ({ onClose }) => {
   return (
     <div className="mt-4 rounded-card border border-border bg-surface-2 p-4 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
@@ -22,9 +23,8 @@ const BoardManageMenu = ({ boardId, onClose }) => {
         </button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4">
         <BoardSettingsForm />
-        <ParticipantList boardId={boardId} />
       </div>
     </div>
   );

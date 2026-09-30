@@ -1,11 +1,12 @@
 import { motion, useReducedMotion } from 'framer-motion';
 import { useSelector } from 'react-redux';
-import { Calendar, ListFilter, MapPin } from 'lucide-react';
+import { Calendar, ListFilter, MapPin, UsersRound } from 'lucide-react';
 
 const TABS = [
   { id: 'options', label: 'Options', icon: ListFilter },
   { id: 'dates', label: 'Dates', icon: Calendar },
   { id: 'map', label: 'Map', icon: MapPin },
+  { id: 'people', label: 'People', icon: UsersRound },
 ];
 
 const BoardTabs = ({ active, onChange }) => {
@@ -21,14 +22,20 @@ const BoardTabs = ({ active, onChange }) => {
     (state) =>
       state.board.optionLocations.length + state.board.participantLocations.length,
   );
+  const participantCount = useSelector((state) => state.board.participants.length);
 
-  const counts = { options: optionCount, dates: myFreeDays, map: locationCount };
+  const counts = {
+    options: optionCount,
+    dates: myFreeDays,
+    map: locationCount,
+    people: participantCount,
+  };
 
   return (
     <div
       role="tablist"
       aria-label="Board sections"
-      className="sticky top-14 z-40 border-b border-border bg-background/90 backdrop-blur-md"
+      className="border-b border-border bg-background"
     >
       <div className="mx-auto flex max-w-5xl items-center gap-1 overflow-x-auto px-4">
         {TABS.map((tab) => {

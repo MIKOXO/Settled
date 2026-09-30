@@ -1,17 +1,46 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Users, X, Loader2 } from 'lucide-react';
+import { Loader2, MapPin, X } from 'lucide-react';
 import { removeParticipant } from '../../services/board';
 import { setParticipants } from '../../store/boardSlice';
 
-const ParticipantList = ({ boardId }) => {
+const initialsOf = (displayName) =>
+  (displayName ?? '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('');
+
+const RoleBadge = ({ role }) =>
+  role === 'owner' ? (
+    <span className="shrink-0 rounded-btn bg-accent-secondary/15 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-accent-secondary">
+      Owner
+    </span>
+  ) : (
+    <span className="shrink-0 rounded-btn bg-surface-2 px-1.5 py-0.5 font-sans text-[11px] text-text-muted">
+      Member
+    </span>
+  );
+
+/**
+ * The People tab's content. Everyone on the board can see this list — only the
+ * remove control is owner-only, gated here rather than by hiding the panel, so a
+ * member sees the same roster with no management affordances.
+ *
+ * "Shared a location" is read straight from the store (`participantLocations`,
+ * kept live by Module 8's socket events) — no fetch of its own.
+ */
+const ParticipantList = ({ boardId, onViewOnMap }) => {
   const dispatch = useDispatch();
   const session = useSelector((state) => state.session);
   const participants = useSelector((state) => state.board.participants);
+  const participantLocations = useSelector((state) => state.board.participantLocations);
   const [confirmId, setConfirmId] = useState(null);
   const [removingId, setRemovingId] = useState(null);
 
-  if (!session || session.role !== 'owner') return null;
+  const isOwner = session?.role === 'owner';
+  const sharedIds = new Set(participantLocations.map((loc) => loc.participantId));
 
   const handleRemove = async (participantId) => {
     setRemovingId(participantId);
@@ -26,78 +55,136 @@ const ParticipantList = ({ boardId }) => {
     }
   };
 
+  if (participants.length === 0) {
+    return (
+      <div className="rounded-card border border-dashed border-border bg-surface px-6 py-14 text-center">
+        <p className="font-heading text-lg font-semibold text-text-primary">Nobody here yet</p>
+        <p className="mx-auto mt-2 max-w-sm font-sans text-sm text-text-muted">
+          Share the invite link to get the first person on this board.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="rounded-card border border-border bg-surface p-5">
-      <div className="mb-4 flex items-center gap-2">
-        <Users className="h-4 w-4 text-text-muted" />
-        <h3 className="font-heading text-sm font-semibold text-text-primary">
-          Participants
-        </h3>
-        <span className="ml-auto font-mono text-xs text-text-muted">
-          {participants.length}
+    <section aria-label="People">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="font-sans text-sm text-text-muted">Everyone on this board</p>
+        <span className="font-mono text-xs text-text-muted">
+          {sharedIds.size} sharing location{sharedIds.size === 1 ? '' : 's'}
         </span>
       </div>
 
-      <ul className="space-y-1">
-        {participants.map((p) => (
-          <li
-            key={p.id}
-            className="flex items-center justify-between rounded-btn px-3 py-2 hover:bg-surface-2 transition-colors duration-150"
-          >
-            <div className="min-w-0">
-              <p className="truncate font-sans text-sm font-medium text-text-primary">
-                {p.displayName}
-              </p>
-              <p className="font-sans text-xs text-text-muted capitalize">{p.role}</p>
-            </div>
+      <ul className="rounded-card border border-border bg-surface p-2">
+        {participants.map((p) => {
+          const isMe = p.id === session?.id;
+          const hasLocation = sharedIds.has(p.id);
 
-            {p.id !== session.id && (
-              <>
-                {confirmId === p.id ? (
-                  <div className="flex items-center gap-2">
-                    <span className="font-sans text-xs text-error">Remove?</span>
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(p.id)}
-                      disabled={removingId === p.id}
-                      className="rounded-btn bg-error/15 px-2 py-1 font-sans text-xs font-medium text-error transition-colors duration-150 hover:bg-error/25 disabled:opacity-50"
-                    >
-                      {removingId === p.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        'Yes'
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmId(null)}
-                      className="rounded-btn bg-surface-2 px-2 py-1 font-sans text-xs font-medium text-text-muted transition-colors duration-150 hover:text-text-primary"
-                    >
-                      No
-                    </button>
-                  </div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setConfirmId(p.id)}
-                    className="rounded-btn p-1.5 text-text-muted transition-colors duration-150 hover:bg-error/10 hover:text-error"
-                    title="Remove participant"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+          const identity = (
+            <>
+              <div className="flex min-w-0 items-center gap-2">
+                <p className="truncate font-sans text-sm font-medium text-text-primary">
+                  {p.displayName}
+                </p>
+                <RoleBadge role={p.role} />
+                {isMe && (
+                  <span className="shrink-0 rounded-btn bg-accent/15 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-accent">
+                    You
+                  </span>
                 )}
-              </>
-            )}
-          </li>
-        ))}
+              </div>
+
+              <p
+                className={`mt-0.5 flex items-center gap-1 font-sans text-xs ${
+                  hasLocation ? 'text-accent-secondary' : 'text-text-muted'
+                }`}
+              >
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                {hasLocation ? 'Location shared — view on map' : 'No location shared'}
+              </p>
+            </>
+          );
+
+          return (
+            <li
+              key={p.id}
+              className="flex items-center gap-3 rounded-btn px-2 py-2 transition-colors duration-150 hover:bg-surface-2/60"
+            >
+              <span
+                aria-hidden="true"
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[11px] ${
+                  p.role === 'owner'
+                    ? 'bg-accent-secondary/15 text-accent-secondary'
+                    : 'bg-surface-2 text-text-muted'
+                }`}
+              >
+                {initialsOf(p.displayName)}
+              </span>
+
+              {/* The whole identity block is the tap target when there's a pin
+                  to look at; without one it stays inert so the row reads as
+                  plain text rather than a dead control. */}
+              {hasLocation && onViewOnMap ? (
+                <button
+                  type="button"
+                  onClick={() => onViewOnMap(p.id)}
+                  title={`View ${p.displayName} on the map`}
+                  className="min-w-0 flex-1 text-left"
+                >
+                  {identity}
+                </button>
+              ) : (
+                <div className="min-w-0 flex-1">{identity}</div>
+              )}
+
+              {isOwner && !isMe && (
+                <>
+                  {confirmId === p.id ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="font-sans text-xs text-error">Remove?</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(p.id)}
+                        disabled={removingId === p.id}
+                        className="rounded-btn bg-error/15 px-2 py-1 font-sans text-xs font-medium text-error transition-colors duration-150 hover:bg-error/25 disabled:opacity-50"
+                      >
+                        {removingId === p.id ? (
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                        ) : (
+                          'Yes'
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmId(null)}
+                        className="rounded-btn bg-surface-2 px-2 py-1 font-sans text-xs font-medium text-text-muted transition-colors duration-150 hover:text-text-primary"
+                      >
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmId(p.id)}
+                      className="shrink-0 rounded-btn p-1.5 text-text-muted transition-colors duration-150 hover:bg-error/10 hover:text-error"
+                      title={`Remove ${p.displayName}`}
+                      aria-label={`Remove ${p.displayName}`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </>
+              )}
+            </li>
+          );
+        })}
       </ul>
 
-      {participants.length <= 1 && (
-        <p className="mt-2 font-sans text-xs text-text-muted">
-          No other participants yet.
-        </p>
-      )}
-    </div>
+      <p className="mt-3 font-sans text-xs text-text-muted">
+        Anyone can share their exact location from the Map tab — it stays private until they
+        opt in.
+      </p>
+    </section>
   );
 };
 

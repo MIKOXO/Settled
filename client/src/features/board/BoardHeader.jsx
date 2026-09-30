@@ -81,7 +81,7 @@ const BoardHeader = ({ boardId }) => {
       )}
 
       {isOwner && manageOpen && (
-        <BoardManageMenu boardId={boardId} onClose={() => setManageOpen(false)} />
+        <BoardManageMenu onClose={() => setManageOpen(false)} />
       )}
     </header>
   );
