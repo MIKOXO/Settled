@@ -4,16 +4,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: 'var(--bg-base)',
-        surface: 'var(--bg-surface)',
-        'surface-2': 'var(--bg-surface-2)',
-        'text-primary': 'var(--text-primary)',
-        'text-muted': 'var(--text-muted)',
-        accent: 'var(--accent-primary)',
-        'accent-secondary': 'var(--accent-secondary)',
+        background: 'rgb(var(--bg-base-rgb) / <alpha-value>)',
+        surface: 'rgb(var(--bg-surface-rgb) / <alpha-value>)',
+        'surface-2': 'rgb(var(--bg-surface-2-rgb) / <alpha-value>)',
+        'text-primary': 'rgb(var(--text-primary-rgb) / <alpha-value>)',
+        'text-muted': 'rgb(var(--text-muted-rgb) / <alpha-value>)',
+        accent: 'rgb(var(--accent-primary-rgb) / <alpha-value>)',
+        'accent-secondary': 'rgb(var(--accent-secondary-rgb) / <alpha-value>)',
         border: 'var(--border-default)',
-        error: 'var(--state-error)',
-        success: 'var(--state-success)',
+        error: 'rgb(var(--state-error-rgb) / <alpha-value>)',
+        success: 'rgb(var(--state-success-rgb) / <alpha-value>)',
       },
       fontFamily: {
         heading: ['Sora', 'sans-serif'],

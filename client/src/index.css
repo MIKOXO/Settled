@@ -6,15 +6,25 @@
 
 :root {
   --bg-base: #171310;
-  --bg-surface: #221C17;
-  --bg-surface-2: #2B221B;
-  --text-primary: #F5F1E8;
-  --text-muted: #B8A99A;
-  --accent-primary: #FF6B4A;
-  --accent-secondary: #F4B942;
+  --bg-surface: #221c17;
+  --bg-surface-2: #2b221b;
+  --text-primary: #f5f1e8;
+  --text-muted: #b8a99a;
+  --accent-primary: #ff6b4a;
+  --accent-secondary: #f4b942;
   --border-default: rgba(245, 241, 232, 0.12);
-  --state-error: #E5484D;
-  --state-success: #7FD8BE;
+  --state-error: #e5484d;
+  --state-success: #7fd8be;
+
+  --bg-base-rgb: 23 19 16;
+  --bg-surface-rgb: 34 28 23;
+  --bg-surface-2-rgb: 43 34 27;
+  --text-primary-rgb: 245 241 232;
+  --text-muted-rgb: 184 169 154;
+  --accent-primary-rgb: 255 107 74;
+  --accent-secondary-rgb: 244 185 66;
+  --state-error-rgb: 229 72 77;
+  --state-success-rgb: 127 216 190;
 }
 
 body {
@@ -114,6 +124,12 @@ body {
 
 /* Current-location pulse animation */
 @keyframes currentPulse {
-  0% { transform: scale(1); opacity: 0.7; }
-  100% { transform: scale(2.4); opacity: 0; }
+  0% {
+    transform: scale(1);
+    opacity: 0.7;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
 }
