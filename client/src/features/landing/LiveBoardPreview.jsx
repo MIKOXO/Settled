@@ -252,7 +252,7 @@ const LiveBoardPreview = () => {
         </div>
 
         {/* Interactive Feature Tabs Switcher (Options, Map, Dates) */}
-        <div className="mt-3 flex items-center gap-1.5 border-t border-border/50 pt-2">
+        <div className="mt-3 flex items-center gap-1.5 border-t border-border pt-2">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -264,7 +264,7 @@ const LiveBoardPreview = () => {
                 onClick={() => handleTabClick(tab.id)}
                 className={`relative flex items-center gap-1.5 rounded-btn px-2.5 py-1 text-xs font-medium transition-all duration-200 ${
                   isActive
-                    ? 'bg-surface text-text-primary border border-border/80 shadow-sm'
+                    ? 'bg-surface text-text-primary border border-border shadow-sm'
                     : 'text-text-muted hover:text-text-primary hover:bg-surface/50'
                 }`}
               >
@@ -361,7 +361,7 @@ const LiveBoardPreview = () => {
                             className={`flex items-center gap-1 rounded-btn px-2 py-1 text-xs font-mono transition-all ${
                               userVote === 'like'
                                 ? 'bg-accent text-background font-semibold'
-                                : 'bg-surface border border-border/80 text-text-muted hover:border-accent hover:text-accent'
+                                : 'bg-surface border border-border text-text-muted hover:border-accent hover:text-accent'
                             }`}
                           >
                             <ThumbsUp className="h-3 w-3" />
@@ -375,7 +375,7 @@ const LiveBoardPreview = () => {
                             className={`flex items-center gap-1 rounded-btn px-2 py-1 text-xs font-mono transition-all ${
                               userVote === 'dislike'
                                 ? 'bg-text-muted text-background font-semibold'
-                                : 'bg-surface border border-border/80 text-text-muted hover:border-text-muted hover:text-text-primary'
+                                : 'bg-surface border border-border text-text-muted hover:border-text-muted hover:text-text-primary'
                             }`}
                           >
                             <ThumbsDown className="h-3 w-3" />

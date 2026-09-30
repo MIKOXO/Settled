@@ -77,7 +77,7 @@ const HowItWorks = () => {
       <div className="relative mt-16 sm:mt-20">
         {/* Connecting Horizontal Line (Desktop) */}
         <div className="hidden md:block">
-          <div className="absolute top-3 left-6 right-6 h-px bg-border/80" />
+          <div className="absolute top-3 left-6 right-6 h-px bg-border" />
           <motion.div
             className="absolute top-3 left-6 right-6 h-px bg-gradient-to-r from-accent via-accent to-accent-secondary origin-left"
             initial={reduceMotion ? false : { scaleX: 0 }}
@@ -140,7 +140,7 @@ const HowItWorks = () => {
                 </div>
 
                 {/* Bottom Contextual Tag / Micro-Interaction */}
-                <div className="mt-6 pt-4 border-t border-border/50">
+                <div className="mt-6 pt-4 border-t border-border">
                   {index === 0 && (
                     <button
                       type="button"

@@ -60,7 +60,7 @@ const Hero = () => {
             initial={reduceMotion ? false : { opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: 0.42, ease: [0.22, 1, 0.36, 1] }}
-            className="mt-8 flex flex-wrap gap-2 pt-2 border-t border-border/60"
+            className="mt-8 flex flex-wrap gap-2 pt-2 border-t border-border"
           >
             {[
               '0 sign-ups to vote',
