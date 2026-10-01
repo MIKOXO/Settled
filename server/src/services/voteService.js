@@ -1,6 +1,7 @@
 import { Vote } from '../models/Vote.js';
 import { Option } from '../models/Option.js';
 import { createAppError } from '../utils/AppError.js';
+import { assertOptionBoardOpen } from '../utils/boardGuard.js';
 import { emitVoteUpdated } from '../sockets/voteEmitter.js';
 
 export const castVote = async (participantId, optionId, value) => {
@@ -8,6 +9,8 @@ export const castVote = async (participantId, optionId, value) => {
   if (!option) {
     throw createAppError('Option not found', 404);
   }
+
+  await assertOptionBoardOpen(option);
 
   const existing = await Vote.findOne({ optionId, participantId });
 
@@ -53,6 +56,8 @@ export const removeVote = async (participantId, optionId) => {
   if (!option) {
     throw createAppError('Option not found', 404);
   }
+
+  await assertOptionBoardOpen(option);
 
   const vote = await Vote.findOneAndDelete({ optionId, participantId });
 

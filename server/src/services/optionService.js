@@ -3,9 +3,12 @@ import { Location } from '../models/Location.js';
 import { Vote } from '../models/Vote.js';
 import { uploadToB2, getSignedPhotoUrl } from '../utils/b2.js';
 import { createAppError } from '../utils/AppError.js';
+import { assertBoardOpen } from '../utils/boardGuard.js';
 import { findLeadingOptionIds } from './voteService.js';
 
 export const createOption = async (participantId, board, input) => {
+  assertBoardOpen(board);
+
   const option = await Option.create({
     boardId: board._id,
     createdBy: participantId,

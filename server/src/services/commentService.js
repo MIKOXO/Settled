@@ -2,6 +2,7 @@ import { Comment } from '../models/Comment.js';
 import { Option } from '../models/Option.js';
 import { Participant } from '../models/Participant.js';
 import { createAppError } from '../utils/AppError.js';
+import { assertOptionBoardOpen } from '../utils/boardGuard.js';
 import { emitCommentAdded } from '../sockets/commentEmitter.js';
 
 const decodeCursor = (cursor) => {
@@ -28,6 +29,8 @@ export const createComment = async (participantId, optionId, input) => {
   if (!option) {
     throw createAppError('Option not found', 404);
   }
+
+  await assertOptionBoardOpen(option);
 
   const comment = await Comment.create({
     optionId,
