@@ -1,8 +1,22 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Lock, Loader2 } from 'lucide-react';
+import { AlertTriangle, Lock, Loader2 } from 'lucide-react';
 import { lockDecision } from '../../services/board';
 import { setBoard } from '../../store/boardSlice';
+
+const countLabel = (count, singular, plural) => {
+  if (count === 0) return `no ${plural}`;
+  return `${count} ${count === 1 ? singular : plural}`;
+};
+
+// Ties are the normal path — every tied option is "leading", so the summary
+// counts them instead of naming a single title the owner never picked.
+const leadingSummary = (leadingOptions) => {
+  if (leadingOptions.length > 1) {
+    return `${leadingOptions.length} options are tied for the lead`;
+  }
+  return `${leadingOptions[0].title} is leading`;
+};
 
 const LockDecisionButton = () => {
   const dispatch = useDispatch();
@@ -13,6 +27,7 @@ const LockDecisionButton = () => {
   const [selectedId, setSelectedId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [overrideSeen, setOverrideSeen] = useState(false);
   const rootRef = useRef(null);
 
   useEffect(() => {
@@ -41,9 +56,26 @@ const LockDecisionButton = () => {
   const defaultOption = leadingOptions[0] ?? options[0];
   const value = selectedId || defaultOption?.id || '';
 
+  // Overriding is only possible once there's a choice to override: a single
+  // option is trivially leading, and with no votes every option ties, so any
+  // pick is already a leading one.
+  const canOverride = options.length > 1 && leadingOptions.length < options.length;
+  const selectedOption = options.find((o) => o.id === value);
+  const isOverride = canOverride && !!selectedOption && !selectedOption.isLeading;
+  // The score quoted is the leading option's — it's what the owner is
+  // overriding. Tied options share a score by definition, so the first one
+  // speaks for the whole tied set.
+  const { likesCount = 0, dislikesCount = 0 } = leadingOptions[0] ?? {};
+  const scoreLabel = `${countLabel(likesCount, 'like', 'likes')} and ${countLabel(
+    dislikesCount,
+    'dislike',
+    'dislikes',
+  )}`;
+
   const handleLock = async () => {
     if (!value) return;
 
+    setOverrideSeen(false);
     setError(null);
     setSubmitting(true);
     try {
@@ -78,7 +110,10 @@ const LockDecisionButton = () => {
 
           <select
             value={value}
-            onChange={(e) => setSelectedId(e.target.value)}
+            onChange={(e) => {
+              setSelectedId(e.target.value);
+              setOverrideSeen(false);
+            }}
             className="w-full rounded-btn border border-border bg-surface px-3 py-2 font-sans text-sm text-text-primary focus:outline-none focus:border-accent transition-colors duration-200"
           >
             {options.map((o) => (
@@ -95,18 +130,46 @@ const LockDecisionButton = () => {
             </p>
           )}
 
+          {isOverride && (
+            <div className="mt-3 rounded-btn border border-error/40 bg-error/10 px-3 py-2.5">
+              <p className="flex items-start gap-2 font-sans text-sm leading-relaxed text-error">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  {leadingSummary(leadingOptions)} with {scoreLabel}. Lock in{' '}
+                  {selectedOption.title} instead?
+                </span>
+              </p>
+
+              <label className="mt-2.5 flex cursor-pointer items-start gap-2 font-sans text-xs leading-relaxed text-text-muted">
+                <input
+                  type="checkbox"
+                  checked={overrideSeen}
+                  onChange={(e) => setOverrideSeen(e.target.checked)}
+                  className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-error"
+                />
+                I understand this isn't the leading option
+              </label>
+            </div>
+          )}
+
           <button
             type="button"
             onClick={handleLock}
-            disabled={submitting || !value}
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-btn bg-accent px-4 py-2 font-sans text-sm font-semibold text-background transition-all duration-200 hover:brightness-110 disabled:opacity-60"
+            disabled={submitting || !value || (isOverride && !overrideSeen)}
+            className={`mt-3 flex w-full items-center justify-center gap-2 rounded-btn px-4 py-2 font-sans text-sm font-semibold text-background transition-all duration-200 hover:brightness-110 disabled:opacity-60 ${
+              isOverride ? 'bg-error' : 'bg-accent'
+            }`}
           >
             {submitting ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Lock className="h-4 w-4" />
             )}
-            {submitting ? 'Locking...' : 'Confirm lock'}
+            {submitting
+              ? 'Locking...'
+              : isOverride
+                ? 'Override and lock'
+                : 'Confirm lock'}
           </button>
         </div>
       )}
