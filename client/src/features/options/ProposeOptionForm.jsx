@@ -18,6 +18,7 @@ const ProposeOptionForm = ({ prefill }) => {
   const { boardId } = useParams();
   const session = useSelector((state) => state.session);
   const optionsOwnerOnly = useSelector((state) => state.board.optionsOwnerOnly ?? false);
+  const decided = useSelector((state) => state.board.board?.status === 'decided');
   const canCreate = !optionsOwnerOnly || session?.role === 'owner';
   const reduceMotion = useReducedMotion();
 
@@ -53,11 +54,24 @@ const ProposeOptionForm = ({ prefill }) => {
     setOpen(true);
   }
 
+  // Both closed states share one shape: a quiet centered line, no interactive
+// affordance. Hiding the trigger outright would leave the panel looking like
+// options can still be added; a dead "Add an option" button would invite a
+// submit that 403s.
   if (!canCreate) {
     return (
       <p className="mt-6 flex items-center justify-center gap-2 font-sans text-sm text-text-muted/70">
         <Lock className="h-4 w-4 shrink-0" />
         Only the board owner can add options.
+      </p>
+    );
+  }
+
+  if (decided) {
+    return (
+      <p className="mt-6 flex items-center justify-center gap-2 font-sans text-sm text-text-muted/70">
+        <Lock className="h-4 w-4 shrink-0" />
+        This board&apos;s decision is locked — no new options.
       </p>
     );
   }

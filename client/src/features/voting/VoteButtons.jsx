@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { castVote, removeVote } from '../../services/votes';
@@ -24,22 +24,30 @@ const VoteButton = ({
   active,
   errored,
   disabled,
+  locked,
   onClick,
 }) => {
   const Icon = value === 'like' ? ThumbsUp : ThumbsDown;
   const reduceMotion = useReducedMotion();
 
+  // A decided board still shows the tally — including your own past reaction —
+  // it just can't be changed. `locked` and `disabled` are distinct states:
+  // `disabled` is a request in flight, `locked` is the board being final.
+  const title = locked
+    ? 'Decision locked — voting is closed'
+    : errored
+      ? "Couldn't update — try again"
+      : `${count} ${value}s`;
+
   return (
     <motion.button
       type="button"
       onClick={() => onClick(value)}
-      disabled={disabled}
+      disabled={disabled || locked}
       aria-pressed={active}
       aria-label={`${value} (${count})`}
-      title={
-        errored ? "Couldn't update — try again" : `${count} ${value}s`
-      }
-      whileTap={reduceMotion ? undefined : { scale: 0.92 }}
+      title={title}
+      whileTap={reduceMotion || locked ? undefined : { scale: 0.92 }}
       transition={{ type: 'spring', stiffness: 500, damping: 25 }}
       className={`flex items-center gap-1.5 rounded-btn border px-2.5 py-1.5 transition-colors duration-150 ${
         errored
@@ -47,7 +55,7 @@ const VoteButton = ({
           : active
             ? 'border-accent bg-accent/10 text-accent'
             : 'border-border text-text-muted hover:border-accent/50 hover:text-text-primary'
-      } ${disabled ? 'cursor-wait opacity-60' : ''}`}
+      } ${locked ? 'cursor-not-allowed opacity-50' : ''} ${disabled ? 'cursor-wait opacity-60' : ''}`}
     >
       <Icon className="h-4 w-4" />
       <span className="font-mono text-xs">{count}</span>
@@ -57,6 +65,7 @@ const VoteButton = ({
 
 const VoteButtons = ({ option }) => {
   const dispatch = useDispatch();
+  const decided = useSelector((state) => state.board.board?.status === 'decided');
   const [pending, setPending] = useState(false);
   const [errorValue, setErrorValue] = useState(null);
 
@@ -67,7 +76,7 @@ const VoteButtons = ({ option }) => {
   }, [errorValue]);
 
   const handleClick = async (value) => {
-    if (pending) return;
+    if (pending || decided) return;
 
     const nextValue = option.vote === value ? null : value;
     const snapshot = {
@@ -117,6 +126,7 @@ const VoteButtons = ({ option }) => {
         active={option.vote === 'like'}
         errored={errorValue === 'like'}
         disabled={pending}
+        locked={decided}
         onClick={handleClick}
       />
       <VoteButton
@@ -125,6 +135,7 @@ const VoteButtons = ({ option }) => {
         active={option.vote === 'dislike'}
         errored={errorValue === 'dislike'}
         disabled={pending}
+        locked={decided}
         onClick={handleClick}
       />
     </div>

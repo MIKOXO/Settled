@@ -1,14 +1,27 @@
 import { useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { Loader2, Send } from 'lucide-react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Loader2, Lock, Send } from 'lucide-react';
 import { postComment } from '../../services/comments';
 import { addComment } from '../../store/boardSlice';
 
 const CommentForm = ({ optionId }) => {
   const dispatch = useDispatch();
+  const decided = useSelector((state) => state.board.board?.status === 'decided');
   const [body, setBody] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  // Reads stay open — the existing thread is history worth keeping — but the
+  // decision is final, so there's nothing new to argue about. A message beats a
+  // greyed-out input, which only invites a submit that 403s.
+  if (decided) {
+    return (
+      <p className="flex items-center gap-2 font-sans text-xs text-text-muted/70">
+        <Lock className="h-3.5 w-3.5 shrink-0" />
+        This board&apos;s decision is locked — no new comments.
+      </p>
+    );
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault();
