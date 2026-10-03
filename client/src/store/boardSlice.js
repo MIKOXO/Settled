@@ -26,6 +26,22 @@ const boardSlice = createSlice({
     addOption: (state, action) => {
       state.options.unshift(action.payload);
     },
+    updateOptionDetails: (state, action) => {
+      const { optionId, changes } = action.payload;
+      const option = state.options.find((o) => o.id === optionId);
+      if (option) Object.assign(option, changes);
+    },
+    removeOption: (state, action) => {
+      const optionId = action.payload;
+      state.options = state.options.filter((o) => o.id !== optionId);
+      // The server cascades the option's votes, comments, and location away with
+      // it, so the store drops the matching thread state and map pin rather than
+      // keeping entries nothing can ever resolve again.
+      delete state.comments[optionId];
+      state.optionLocations = state.optionLocations.filter(
+        (l) => l.optionId !== optionId,
+      );
+    },
     applyVoteUpdate: (state, action) => {
       const {
         optionId,
@@ -173,6 +189,8 @@ export const {
   setBoard,
   setOptions,
   addOption,
+  updateOptionDetails,
+  removeOption,
   applyVoteUpdate,
   setComments,
   appendComments,
