@@ -52,13 +52,12 @@ const ScoreChip = ({ score }) => {
   );
 };
 
-const OptionCard = ({ option, onViewOnMap, glowUniqueId, enterDelay = 0 }) => {
+const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
   const {
     title,
     notes,
     link,
     photoUrl,
-    isLeading,
     commentCount,
     location,
     score,
@@ -92,14 +91,14 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId, enterDelay = 0 }) => {
             default: { type: 'spring', stiffness: 500, damping: 40 },
           }}
       className={`relative rounded-card border bg-surface p-4 transition-colors duration-200 ${
-        isLeading
+        isTopLiked
           ? 'border-accent-secondary/50 hover:border-accent-secondary/80'
           : 'border-border hover:border-text-muted/30'
       }`}
     >
-      {isLeading && (
+      {isTopLiked && (
         <motion.span
-          layoutId={glowUniqueId ? 'leadingOptionGlow' : undefined}
+          layoutId="leadingOptionGlow"
           aria-hidden="true"
           className="pointer-events-none absolute inset-x-3 -top-px h-px bg-accent-secondary"
           transition={reduceMotion
@@ -119,7 +118,7 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId, enterDelay = 0 }) => {
               {title}
             </h3>
             <AnimatePresence initial={false} mode="popLayout">
-              {isLeading && <LeadingTag key="leading" />}
+              {isTopLiked && <LeadingTag key="leading" />}
             </AnimatePresence>
           </div>
 
@@ -237,10 +236,18 @@ const OptionsList = ({ onViewOnMap }) => {
     [options],
   );
 
-  // Ties can flag several options leading at once — the traveling layoutId
-  // glow is only mounted when exactly one option leads, so it never has
-  // duplicates fighting over the same id.
-  const glowUniqueId = options.filter((o) => o.isLeading).length === 1;
+  // One leader or none: the tag/border/glow belong to the single option
+  // with the most likes. The server's isLeading flags every tied option,
+  // which on a fresh board (all zeros) meant *every* card read "Leading" —
+  // a highlight that marks everything marks nothing. Ties at the top and
+  // all-zero boards show no leader.
+  const topLikesId = useMemo(() => {
+    if (options.length === 0) return null;
+    const max = Math.max(...options.map((o) => o.likesCount));
+    if (max === 0) return null;
+    const top = options.filter((o) => o.likesCount === max);
+    return top.length === 1 ? top[0].id : null;
+  }, [options]);
 
   if (options.length === 0) {
     return (
@@ -275,7 +282,7 @@ const OptionsList = ({ onViewOnMap }) => {
             key={option.id}
             option={option}
             onViewOnMap={onViewOnMap}
-            glowUniqueId={glowUniqueId}
+            isTopLiked={option.id === topLikesId}
             enterDelay={mountIds.has(option.id) ? Math.min(index * 0.05, 0.4) : 0}
           />
         ))}
