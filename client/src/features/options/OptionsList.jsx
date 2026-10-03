@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowDownWideNarrow, ChevronDown, ExternalLink, Lightbulb, MapPin, MessageSquare } from 'lucide-react';
+import { ArrowDownWideNarrow, ChevronDown, ExternalLink, Lightbulb, MapPin, MessageSquare, Trophy } from 'lucide-react';
 import VoteButtons from '../voting/VoteButtons';
 import CommentThread from '../threads/CommentThread';
 import EditOptionForm from './EditOptionForm';
@@ -17,6 +17,7 @@ const LeadingTag = () => (
     transition={{ type: 'spring', stiffness: 500, damping: 28 }}
     className="flex shrink-0 items-center gap-1 rounded-full bg-accent-secondary/15 px-2 py-0.5 font-sans text-[11px] font-semibold text-accent-secondary"
   >
+    <Trophy className="h-3 w-3" />
     Leading
   </motion.span>
 );
@@ -90,21 +91,44 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
             y: { duration: 0.35, delay: enterDelay, ease: [0.22, 1, 0.36, 1] },
             default: { type: 'spring', stiffness: 500, damping: 40 },
           }}
-      className={`relative rounded-card border bg-surface p-4 transition-colors duration-200 ${
+      className={`relative rounded-card border p-4 transition-[border-color,box-shadow] duration-300 ${
         isTopLiked
-          ? 'border-accent-secondary/50 hover:border-accent-secondary/80'
-          : 'border-border hover:border-text-muted/30'
+          ? 'animate-leading-halo border-accent-secondary/60 bg-gradient-to-b from-accent-secondary/[0.07] to-surface shadow-[0_0_36px_-10px_rgb(var(--accent-secondary-rgb)_/_0.3)] hover:border-accent-secondary'
+          : 'bg-surface hover:border-text-muted/30 border-border'
       }`}
     >
       {isTopLiked && (
+        // The beam: a tight gradient line plus a blurred bloom copy, a bright
+        // shimmer streak sweeping its length, and a breathing base opacity —
+        // it travels between leaders via layoutId. The halo pulses separately
+        // (CSS keyframes on the card). Together the leader should feel live,
+        // not just highlighted.
         <motion.span
           layoutId="leadingOptionGlow"
           aria-hidden="true"
-          className="pointer-events-none absolute inset-x-3 -top-px h-px bg-accent-secondary"
+          animate={reduceMotion ? undefined : { opacity: [0.55, 1] }}
           transition={reduceMotion
             ? { duration: 0 }
-            : { type: 'spring', stiffness: 350, damping: 30 }}
-        />
+            : {
+                default: { type: 'spring', stiffness: 350, damping: 30 },
+                opacity: { duration: 1.4, repeat: Infinity, repeatType: 'reverse', ease: 'easeInOut' },
+              }}
+          className="pointer-events-none absolute inset-x-4 -top-px h-px"
+        >
+          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-accent-secondary to-transparent" />
+          <span className="absolute inset-x-0 -top-0.5 h-1 bg-accent-secondary/40 blur-[4px]" />
+          {!reduceMotion && (
+            // The streak clips to the beam's own length — without the mask it
+            // sweeps right off the card and across the page background.
+            <span className="absolute inset-x-0 top-0 h-px overflow-hidden">
+              <motion.span
+                animate={{ x: ['-100%', '500%'] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut', repeatDelay: 0.5 }}
+                className="absolute inset-y-0 w-1/5 bg-gradient-to-r from-transparent via-text-primary/90 to-transparent"
+              />
+            </span>
+          )}
+        </motion.span>
       )}
 
       {editing ? (
