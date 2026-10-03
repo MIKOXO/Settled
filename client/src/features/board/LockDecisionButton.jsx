@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { AlertTriangle, Lock, Loader2 } from 'lucide-react';
 import { lockDecision } from '../../services/board';
 import { setBoard } from '../../store/boardSlice';
+import useDismissable from '../../hooks/useDismissable';
 
 const countLabel = (count, singular, plural) => {
   if (count === 0) return `no ${plural}`;
@@ -30,23 +31,7 @@ const LockDecisionButton = () => {
   const [overrideSeen, setOverrideSeen] = useState(false);
   const rootRef = useRef(null);
 
-  useEffect(() => {
-    if (!open) return undefined;
-
-    const handleClickOutside = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
-    };
-    const handleEscape = (e) => {
-      if (e.key === 'Escape') setOpen(false);
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    document.addEventListener('keydown', handleEscape);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.removeEventListener('keydown', handleEscape);
-    };
-  }, [open]);
+  useDismissable(rootRef, open, () => setOpen(false));
 
   if (session?.role !== 'owner' || !board || board.status === 'decided' || options.length === 0) {
     return null;

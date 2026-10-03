@@ -5,6 +5,7 @@ import { Loader2 } from 'lucide-react';
 import FieldError from '../../components/FieldError';
 import ErrorBanner from '../../components/ErrorBanner';
 import useFormErrors from '../../hooks/useFormErrors';
+import { mapValidationIssues } from '../../utils/validationErrors';
 import { setSession } from '../../store/sessionSlice';
 import { joinBoard } from '../../services/board';
 
@@ -46,20 +47,9 @@ const JoinBoardForm = ({ inviteToken, boardName }) => {
 
       navigate(`/board/${result.board.id}`);
     } catch (err) {
-      const mapped = {};
-      let mappedAny = false;
+      const mapped = mapValidationIssues(err.issues);
 
-      if (Array.isArray(err.issues)) {
-        for (const issue of err.issues) {
-          const field = Array.isArray(issue.path) ? issue.path[0] : null;
-          if (field === 'displayName' || field === 'email') {
-            mapped[field] = issue.message;
-            mappedAny = true;
-          }
-        }
-      }
-
-      if (mappedAny) {
+      if (mapped) {
         setFieldErrors(mapped);
         setBlockError('Please fix the highlighted fields and try again.');
       } else {

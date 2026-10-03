@@ -1,9 +1,13 @@
 import { useMemo, useState } from 'react';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { motion, useReducedMotion } from 'framer-motion';
 import { ChevronDown, ExternalLink, MapPin, MessageSquare } from 'lucide-react';
 import VoteButtons from '../voting/VoteButtons';
 import CommentThread from '../threads/CommentThread';
+import EditOptionForm from './EditOptionForm';
+import OptionActions from './OptionActions';
+import { deleteOption } from '../../services/options';
+import { removeOption } from '../../store/boardSlice';
 
 const LeadingTag = () => (
   <span className="flex shrink-0 items-center gap-1 rounded-full bg-accent-secondary/15 px-2 py-0.5 font-sans text-[11px] font-semibold text-accent-secondary">
@@ -21,8 +25,19 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId }) => {
     commentCount,
     location,
   } = option;
+  const dispatch = useDispatch();
+  const session = useSelector((state) => state.session);
   const [threadOpen, setThreadOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   const reduceMotion = useReducedMotion();
+
+  // Mirrors the server's rule (utils/optionGuard.js): the owner can change
+  // anyone's option, and so can the person who proposed it. Everyone else sees
+  // the card read-only — the controls are hidden rather than shown-and-failing,
+  // but the server still decides.
+  const canManage = session?.role === 'owner' || session?.id === option.createdBy;
+
+  const handleDelete = () => deleteOption(option.id).then(() => dispatch(removeOption(option.id)));
 
   return (
     <motion.article
@@ -45,81 +60,99 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId }) => {
         />
       )}
 
-      {/* Title row: primary identity, with the Leading tag kept out of the
-          action row. */}
-      <div className="flex items-start gap-2">
-        <h3 className="min-w-0 flex-1 font-heading text-base font-semibold leading-snug text-text-primary">
-          {title}
-        </h3>
-        {isLeading && <LeadingTag />}
-      </div>
+      {editing ? (
+        <EditOptionForm option={option} onDone={() => setEditing(false)} />
+      ) : (
+        <>
+          {/* Title row: primary identity, with the Leading tag kept out of the
+              action row. */}
+          <div className="flex items-start gap-2">
+            <h3 className="min-w-0 flex-1 font-heading text-base font-semibold leading-snug text-text-primary">
+              {title}
+            </h3>
+            {isLeading && <LeadingTag />}
+          </div>
 
-      {/* Secondary block: photo thumbnail, notes, link — muted on purpose. */}
-      {(photoUrl || notes || link) && (
-        <div className="mt-3">
-          {photoUrl && (
-            <img
-              src={photoUrl}
-              alt=""
-              className="mb-3 h-40 w-full rounded-btn border border-border object-cover sm:h-48"
-            />
+          {/* Secondary block: photo thumbnail, notes, link — muted on purpose. */}
+          {(photoUrl || notes || link) && (
+            <div className="mt-3">
+              {photoUrl && (
+                <img
+                  src={photoUrl}
+                  alt=""
+                  className="mb-3 h-40 w-full rounded-btn border border-border object-cover sm:h-48"
+                />
+              )}
+
+              {notes && (
+                <p className="whitespace-pre-line font-sans text-sm leading-relaxed text-text-muted">
+                  {notes}
+                </p>
+              )}
+
+              {link && (
+                <a
+                  href={link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`inline-flex max-w-full items-center gap-1.5 font-sans text-sm text-accent underline-offset-2 hover:underline ${
+                    notes ? 'mt-2' : ''
+                  }`}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">{link}</span>
+                </a>
+              )}
+            </div>
           )}
 
-          {notes && (
-            <p className="whitespace-pre-line font-sans text-sm leading-relaxed text-text-muted">
-              {notes}
-            </p>
-          )}
+          {/* Single action row: vote, discuss, locate, and — for the option's
+              creator and the owner — an overflow menu holding edit and delete.
+              Wraps because the delete confirm is wider than the ⋯ trigger it
+              replaces, and a narrow phone shouldn't push it off the row. */}
+          <div className="mt-3.5 flex flex-wrap items-center gap-2">
+            <VoteButtons option={option} />
 
-          {link && (
-            <a
-              href={link}
-              target="_blank"
-              rel="noreferrer"
-              className={`inline-flex max-w-full items-center gap-1.5 font-sans text-sm text-accent underline-offset-2 hover:underline ${
-                notes ? 'mt-2' : ''
-              }`}
+            <button
+              type="button"
+              onClick={() => setThreadOpen((wasOpen) => !wasOpen)}
+              aria-expanded={threadOpen}
+              className="flex items-center gap-1.5 rounded-btn px-2 py-1.5 font-sans text-sm text-text-muted transition-colors duration-200 hover:text-text-primary"
             >
-              <ExternalLink className="h-3.5 w-3.5 shrink-0" />
-              <span className="truncate">{link}</span>
-            </a>
-          )}
-        </div>
+              <MessageSquare className="h-4 w-4" />
+              <span className="font-mono text-xs">{commentCount}</span>
+              <ChevronDown
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                  threadOpen ? 'rotate-180' : ''
+                }`}
+              />
+            </button>
+
+            {location && (
+              <button
+                type="button"
+                onClick={onViewOnMap}
+                title="View on map"
+                aria-label="View on map"
+                className="flex items-center gap-1.5 rounded-btn px-2 py-1.5 font-sans text-xs text-text-muted transition-colors duration-200 hover:text-accent"
+              >
+                <MapPin className="h-4 w-4" />
+              </button>
+            )}
+
+            {canManage && (
+              <div className="ml-auto flex items-center">
+                <OptionActions
+                  onEdit={() => setEditing(true)}
+                  onDelete={handleDelete}
+                />
+              </div>
+            )}
+          </div>
+
+          <CommentThread option={option} open={threadOpen} />
+        </>
       )}
-
-      {/* Single action row: vote, discuss, locate. */}
-      <div className="mt-3.5 flex items-center gap-2">
-        <VoteButtons option={option} />
-
-        <button
-          type="button"
-          onClick={() => setThreadOpen((wasOpen) => !wasOpen)}
-          aria-expanded={threadOpen}
-          className="flex items-center gap-1.5 rounded-btn px-2 py-1.5 font-sans text-sm text-text-muted transition-colors duration-200 hover:text-text-primary"
-        >
-          <MessageSquare className="h-4 w-4" />
-          <span className="font-mono text-xs">{commentCount}</span>
-          <ChevronDown
-            className={`h-3.5 w-3.5 transition-transform duration-200 ${
-              threadOpen ? 'rotate-180' : ''
-            }`}
-          />
-        </button>
-
-        {location && (
-          <button
-            type="button"
-            onClick={onViewOnMap}
-            title="View on map"
-            aria-label="View on map"
-            className="flex items-center gap-1.5 rounded-btn px-2 py-1.5 font-sans text-xs text-text-muted transition-colors duration-200 hover:text-accent"
-          >
-            <MapPin className="h-4 w-4" />
-          </button>
-        )}
-      </div>
-
-      <CommentThread option={option} open={threadOpen} />
     </motion.article>
   );
 };

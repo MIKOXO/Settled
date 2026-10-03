@@ -1,8 +1,8 @@
-import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Loader2, MapPin, X } from 'lucide-react';
+import { MapPin, X } from 'lucide-react';
 import { removeParticipant } from '../../services/board';
 import { setParticipants } from '../../store/boardSlice';
+import ConfirmButton from '../../components/ConfirmButton';
 
 const initialsOf = (displayName) =>
   (displayName ?? '')
@@ -36,23 +36,13 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
   const session = useSelector((state) => state.session);
   const participants = useSelector((state) => state.board.participants);
   const participantLocations = useSelector((state) => state.board.participantLocations);
-  const [confirmId, setConfirmId] = useState(null);
-  const [removingId, setRemovingId] = useState(null);
 
   const isOwner = session?.role === 'owner';
   const sharedIds = new Set(participantLocations.map((loc) => loc.participantId));
 
   const handleRemove = async (participantId) => {
-    setRemovingId(participantId);
-    try {
-      await removeParticipant(boardId, participantId);
-      dispatch(setParticipants(participants.filter((p) => p.id !== participantId)));
-      setConfirmId(null);
-    } catch {
-      setConfirmId(null);
-    } finally {
-      setRemovingId(null);
-    }
+    await removeParticipant(boardId, participantId);
+    dispatch(setParticipants(participants.filter((p) => p.id !== participantId)));
   };
 
   if (participants.length === 0) {
@@ -138,42 +128,12 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
               )}
 
               {isOwner && !isMe && (
-                <>
-                  {confirmId === p.id ? (
-                    <div className="flex shrink-0 items-center gap-2">
-                      <span className="font-sans text-xs text-error">Remove?</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemove(p.id)}
-                        disabled={removingId === p.id}
-                        className="rounded-btn bg-error/15 px-2 py-1 font-sans text-xs font-medium text-error transition-colors duration-150 hover:bg-error/25 disabled:opacity-50"
-                      >
-                        {removingId === p.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          'Yes'
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmId(null)}
-                        className="rounded-btn bg-surface-2 px-2 py-1 font-sans text-xs font-medium text-text-muted transition-colors duration-150 hover:text-text-primary"
-                      >
-                        No
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setConfirmId(p.id)}
-                      className="shrink-0 rounded-btn p-1.5 text-text-muted transition-colors duration-150 hover:bg-error/10 hover:text-error"
-                      title={`Remove ${p.displayName}`}
-                      aria-label={`Remove ${p.displayName}`}
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </>
+                <ConfirmButton
+                  onConfirm={() => handleRemove(p.id)}
+                  question="Remove?"
+                  icon={<X className="h-4 w-4" />}
+                  triggerLabel={`Remove ${p.displayName}`}
+                />
               )}
             </li>
           );

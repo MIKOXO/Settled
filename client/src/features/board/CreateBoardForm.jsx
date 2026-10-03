@@ -18,6 +18,7 @@ import Select from '../../components/Select';
 import FieldError from '../../components/FieldError';
 import ErrorBanner from '../../components/ErrorBanner';
 import useFormErrors from '../../hooks/useFormErrors';
+import { mapValidationIssues } from '../../utils/validationErrors';
 import { setSession } from '../../store/sessionSlice';
 import { createBoard, getMe } from '../../services/board';
 
@@ -100,21 +101,9 @@ const CreateBoardForm = () => {
         },
       });
     } catch (err) {
-      const mapped = {};
-      let mappedAny = false;
+      const mapped = mapValidationIssues(err.issues, FIELD_MAP);
 
-      if (Array.isArray(err.issues)) {
-        for (const issue of err.issues) {
-          const rawField = Array.isArray(issue.path) ? issue.path[0] : null;
-          const localField = FIELD_MAP[rawField];
-          if (localField) {
-            mapped[localField] = issue.message;
-            mappedAny = true;
-          }
-        }
-      }
-
-      if (mappedAny) {
+      if (mapped) {
         setFieldErrors(mapped);
         setBlockError('Please fix the highlighted fields and try again.');
       } else {
