@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ChevronDown, ExternalLink, Lightbulb, MapPin, MessageSquare } from 'lucide-react';
+import { ArrowDownWideNarrow, ChevronDown, ExternalLink, Lightbulb, MapPin, MessageSquare } from 'lucide-react';
 import VoteButtons from '../voting/VoteButtons';
 import CommentThread from '../threads/CommentThread';
 import EditOptionForm from './EditOptionForm';
@@ -21,6 +21,37 @@ const LeadingTag = () => (
   </motion.span>
 );
 
+// Score is what ranks the list, but the raw like/dislike buttons don't show
+// it — without the net number a card's position reads as arbitrary, and a
+// live re-rank looks like the list shuffling itself for no reason.
+const ScoreChip = ({ score }) => {
+  const reduceMotion = useReducedMotion();
+  const label = score > 0 ? `+${score}` : score < 0 ? `−${Math.abs(score)}` : '0';
+
+  return (
+    <span
+      title="Score = likes − dislikes"
+      aria-label={`Score ${score}`}
+      className={`flex items-center rounded-btn bg-surface-2 px-2 py-1.5 font-mono text-xs font-medium ${
+        score === 0 ? 'text-text-muted' : 'text-text-primary'
+      }`}
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={label}
+          initial={reduceMotion ? false : { y: 6, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={reduceMotion ? false : { y: -6, opacity: 0 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="inline-block"
+        >
+          {label}
+        </motion.span>
+      </AnimatePresence>
+    </span>
+  );
+};
+
 const OptionCard = ({ option, onViewOnMap, glowUniqueId, enterDelay = 0 }) => {
   const {
     title,
@@ -30,6 +61,7 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId, enterDelay = 0 }) => {
     isLeading,
     commentCount,
     location,
+    score,
   } = option;
   const dispatch = useDispatch();
   const session = useSelector((state) => state.session);
@@ -129,6 +161,7 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId, enterDelay = 0 }) => {
               Wraps because the delete confirm is wider than the ⋯ trigger it
               replaces, and a narrow phone shouldn't push it off the row. */}
           <div className="mt-3.5 flex flex-wrap items-center gap-2">
+            <ScoreChip score={score} />
             <VoteButtons option={option} />
 
             <button
@@ -232,6 +265,10 @@ const OptionsList = ({ onViewOnMap }) => {
 
   return (
     <section aria-label="Options">
+      <p className="mb-3 flex items-center gap-1.5 font-sans text-xs text-text-muted">
+        <ArrowDownWideNarrow className="h-3.5 w-3.5" />
+        Ranked live by score
+      </p>
       <div className="space-y-3">
         {ranked.map((option, index) => (
           <OptionCard

@@ -53,7 +53,7 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
         initial={reduceMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className="rounded-card border border-dashed border-border bg-surface px-6 py-14 text-center"
+        className="max-w-3xl rounded-card border border-dashed border-border bg-surface px-6 py-14 text-center"
       >
         <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-accent/10 text-accent">
           <UsersRound className="h-5 w-5" />
@@ -67,7 +67,7 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
   }
 
   return (
-    <section aria-label="People">
+    <section aria-label="People" className="max-w-3xl">
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="font-sans text-sm text-text-muted">Everyone on this board</p>
         <span className="font-mono text-xs text-text-muted">

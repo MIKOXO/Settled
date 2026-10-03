@@ -284,84 +284,90 @@ const AvailabilityGrid = ({ boardId }) => {
         </div>
       )}
 
-      <div className="rounded-card border border-border bg-surface p-3 sm:p-4">
-        <div className="mb-3 grid grid-cols-3 items-center">
-          <button
-            type="button"
-            onClick={() => goToMonth(-1)}
-            disabled={isCurrentMonth}
-            aria-label="Previous month"
-            className="flex h-8 w-8 items-center justify-center justify-self-start rounded-btn text-text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-text-primary disabled:opacity-30"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-
-          <h3 className="text-center font-heading text-sm font-semibold text-text-primary sm:text-base">
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.span
-                key={viewMonth.getTime()}
-                initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reduceMotion ? false : { opacity: 0, y: -4 }}
-                transition={{ duration: 0.15, ease: 'easeOut' }}
-                className="inline-block"
-              >
-                {formatMonthTitle(viewMonth)}
-              </motion.span>
-            </AnimatePresence>
-          </h3>
-
-          <button
-            type="button"
-            onClick={() => goToMonth(1)}
-            aria-label="Next month"
-            className="flex h-8 w-8 items-center justify-center justify-self-end rounded-btn text-text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-text-primary"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-
-        <div className="grid grid-cols-7 gap-1 pb-1">
-          {WEEKDAYS.map((label) => (
-            <span
-              key={label}
-              className="text-center font-sans text-[10px] font-medium text-text-muted"
+      {/* Calendar owns the width; the selected day's detail sits beside it
+          on desktop (its own card, not a fold in the calendar) and stacks
+          below on mobile. */}
+      <div className="lg:flex lg:items-start lg:gap-4">
+        <div className="min-w-0 flex-1 rounded-card border border-border bg-surface p-3 sm:p-4">
+          <div className="mb-3 grid grid-cols-3 items-center">
+            <button
+              type="button"
+              onClick={() => goToMonth(-1)}
+              disabled={isCurrentMonth}
+              aria-label="Previous month"
+              className="flex h-8 w-8 items-center justify-center justify-self-start rounded-btn text-text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-text-primary disabled:opacity-30"
             >
-              {label}
-            </span>
-          ))}
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+
+            <h3 className="text-center font-heading text-sm font-semibold text-text-primary sm:text-base">
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span
+                  key={viewMonth.getTime()}
+                  initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={reduceMotion ? false : { opacity: 0, y: -4 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="inline-block"
+                >
+                  {formatMonthTitle(viewMonth)}
+                </motion.span>
+              </AnimatePresence>
+            </h3>
+
+            <button
+              type="button"
+              onClick={() => goToMonth(1)}
+              aria-label="Next month"
+              className="flex h-8 w-8 items-center justify-center justify-self-end rounded-btn text-text-muted transition-colors duration-150 hover:bg-surface-2 hover:text-text-primary"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-7 gap-1 pb-1">
+            {WEEKDAYS.map((label) => (
+              <span
+                key={label}
+                className="text-center font-sans text-[10px] font-medium text-text-muted"
+              >
+                {label}
+              </span>
+            ))}
+          </div>
+
+          {/* Enter-only on month change: the old grid leaves instantly (no
+              blank wait) and the new one slides in from the travel direction. */}
+          <motion.div
+            key={viewMonth.getTime()}
+            initial={reduceMotion ? false : { opacity: 0, x: 20 * view.dir }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="grid grid-cols-7 gap-1"
+          >
+            {cells.map((cell, index) =>
+              cell ? (
+                <DayCell
+                  key={cell.dateKey}
+                  day={cell.day}
+                  dateKey={cell.dateKey}
+                  aggregated={aggregated}
+                  myStatus={mySlots[cell.dateKey] ?? null}
+                  isToday={cell.dateKey === today}
+                  isPast={cell.dateKey < today}
+                  isSelected={cell.dateKey === selectedDate}
+                  isPending={pending === cell.dateKey}
+                  onDayClick={handleDayClick}
+                />
+              ) : (
+                <span key={`blank-${index}`} aria-hidden="true" />
+              ),
+            )}
+          </motion.div>
+
         </div>
 
-        {/* Enter-only on month change: the old grid leaves instantly (no
-            blank wait) and the new one slides in from the travel direction. */}
-        <motion.div
-          key={viewMonth.getTime()}
-          initial={reduceMotion ? false : { opacity: 0, x: 20 * view.dir }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.2, ease: 'easeOut' }}
-          className="grid grid-cols-7 gap-1"
-        >
-          {cells.map((cell, index) =>
-            cell ? (
-              <DayCell
-                key={cell.dateKey}
-                day={cell.day}
-                dateKey={cell.dateKey}
-                aggregated={aggregated}
-                myStatus={mySlots[cell.dateKey] ?? null}
-                isToday={cell.dateKey === today}
-                isPast={cell.dateKey < today}
-                isSelected={cell.dateKey === selectedDate}
-                isPending={pending === cell.dateKey}
-                onDayClick={handleDayClick}
-              />
-            ) : (
-              <span key={`blank-${index}`} aria-hidden="true" />
-            ),
-          )}
-        </motion.div>
-
-        <div className="mt-4 border-t border-border pt-4">
+        <div className="mt-4 rounded-card border border-border bg-surface p-4 lg:mt-0 lg:w-80 lg:shrink-0">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <h4 className="font-heading text-sm font-semibold text-text-primary">
@@ -443,12 +449,12 @@ const AvailabilityGrid = ({ boardId }) => {
             </p>
           )}
 
-          <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="mt-4 flex flex-col gap-2">
             <button
               type="button"
               onClick={() => handleToggle(selectedDate)}
               disabled={Boolean(pending)}
-              className={`flex w-full items-center justify-center gap-2 rounded-btn border px-4 py-2.5 font-sans text-sm font-semibold transition-colors duration-200 disabled:opacity-60 sm:w-auto ${
+              className={`flex w-full items-center justify-center gap-2 rounded-btn border px-4 py-2.5 font-sans text-sm font-semibold transition-colors duration-200 disabled:opacity-60 ${
                 selectedStatus === 'free'
                   ? 'border-error/50 bg-error/10 text-error hover:bg-error/20'
                   : 'border-success/50 bg-success/10 text-success hover:bg-success/20'
@@ -469,7 +475,7 @@ const AvailabilityGrid = ({ boardId }) => {
                 type="button"
                 onClick={() => handleClear(selectedDate)}
                 disabled={Boolean(pending)}
-                className="flex w-full items-center justify-center gap-2 rounded-btn border border-border px-4 py-2.5 font-sans text-sm font-medium text-text-muted transition-colors duration-200 hover:border-error/50 hover:text-error disabled:opacity-60 sm:w-auto"
+                className="flex w-full items-center justify-center gap-2 rounded-btn border border-border px-4 py-2.5 font-sans text-sm font-medium text-text-muted transition-colors duration-200 hover:border-error/50 hover:text-error disabled:opacity-60"
               >
                 <Trash2 className="h-4 w-4" />
                 Clear

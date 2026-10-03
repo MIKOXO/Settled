@@ -201,10 +201,13 @@ const BoardPage = () => {
             className="mt-5"
           >
             {activeTab === 'options' && (
-              <>
-                <OptionsList onViewOnMap={() => setActiveTab('map')} />
+              // Composer first: the creation action used to sit under the
+              // whole ranked list, so a long board pushed it (and the
+              // map-tab handoff opening it) below the fold.
+              <div className="max-w-3xl">
                 <ProposeOptionForm prefill={optionPrefill} />
-              </>
+                <OptionsList onViewOnMap={() => setActiveTab('map')} />
+              </div>
             )}
 
             {activeTab === 'dates' && <AvailabilityGrid boardId={boardId} />}

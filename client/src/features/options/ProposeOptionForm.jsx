@@ -60,7 +60,7 @@ const ProposeOptionForm = ({ prefill }) => {
 // submit that 403s.
   if (!canCreate) {
     return (
-      <p className="mt-6 flex items-center justify-center gap-2 font-sans text-sm text-text-muted/70">
+      <p className="mb-5 flex items-center gap-2 font-sans text-sm text-text-muted/70">
         <Lock className="h-4 w-4 shrink-0" />
         Only the board owner can add options.
       </p>
@@ -69,7 +69,7 @@ const ProposeOptionForm = ({ prefill }) => {
 
   if (decided) {
     return (
-      <p className="mt-6 flex items-center justify-center gap-2 font-sans text-sm text-text-muted/70">
+      <p className="mb-5 flex items-center gap-2 font-sans text-sm text-text-muted/70">
         <Lock className="h-4 w-4 shrink-0" />
         This board&apos;s decision is locked — no new options.
       </p>
@@ -147,7 +147,7 @@ const ProposeOptionForm = ({ prefill }) => {
 
   if (!open) {
     return (
-      <div className="mt-6">
+      <div className="mb-5">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -166,7 +166,7 @@ const ProposeOptionForm = ({ prefill }) => {
       initial={reduceMotion ? false : { opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.18 }}
-      className="mt-6 rounded-card border border-border bg-surface p-5 sm:p-6"
+      className="mb-5 rounded-card border border-border bg-surface p-5 sm:p-6"
     >
       <div className="mb-4 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
