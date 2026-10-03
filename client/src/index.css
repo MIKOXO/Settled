@@ -133,3 +133,11 @@ body {
     opacity: 0;
   }
 }
+
+/* Framer Motion handles reduced motion per-component; Tailwind's CSS-driven
+   animate-ping has no such gate, so it is silenced globally here. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-ping {
+    animation: none;
+  }
+}
