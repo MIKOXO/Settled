@@ -134,10 +134,30 @@ body {
   }
 }
 
+/* Leading-option halo — the leader's outer glow swells and settles on a
+   loop instead of sitting at one intensity. Box-shadow is animated here
+   (not in framer) so the card's motion props stay free for rank/layout. */
+@keyframes leadingHalo {
+  from {
+    box-shadow: 0 0 26px -10px rgb(var(--accent-secondary-rgb) / 0.2);
+  }
+  to {
+    box-shadow: 0 0 46px -8px rgb(var(--accent-secondary-rgb) / 0.45);
+  }
+}
+
+.animate-leading-halo {
+  animation: leadingHalo 1.5s ease-in-out infinite alternate;
+}
+
 /* Framer Motion handles reduced motion per-component; Tailwind's CSS-driven
    animate-ping has no such gate, so it is silenced globally here. */
 @media (prefers-reduced-motion: reduce) {
   .animate-ping {
     animation: none;
+  }
+  .animate-leading-halo {
+    animation: none;
+    box-shadow: 0 0 36px -10px rgb(var(--accent-secondary-rgb) / 0.3);
   }
 }
