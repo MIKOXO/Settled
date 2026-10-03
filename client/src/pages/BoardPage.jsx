@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
+import { motion, useReducedMotion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import useSocket from '../hooks/useSocket';
 import useBoardSocket from '../hooks/useBoardSocket';
@@ -39,6 +40,7 @@ const BoardPage = () => {
   const prefillNonce = useRef(0);
   const [mapFocus, setMapFocus] = useState(null);
   const focusNonce = useRef(0);
+  const reduceMotion = useReducedMotion();
 
   // Cross-tab handoff: the map tab proposes a place, the options tab receives
   // it. BoardPage owns the handoff state so neither feature imports the other.
@@ -114,16 +116,33 @@ const BoardPage = () => {
 
   if (status === 'idle' || status === 'loading') {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
-        <Loader2 className="h-8 w-8 animate-spin text-accent" />
-        <p className="mt-4 font-sans text-sm text-text-muted">Loading board...</p>
-      </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2 }}
+        className="flex min-h-screen flex-col items-center justify-center bg-background px-4"
+      >
+        <div className="flex items-center gap-2 font-heading text-lg font-semibold text-text-primary">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-60" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-accent" />
+          </span>
+          Settled
+        </div>
+        <Loader2 className="mt-6 h-6 w-6 animate-spin text-accent" />
+        <p className="mt-3 font-sans text-sm text-text-muted">Loading board...</p>
+      </motion.div>
     );
   }
 
   if (status === 'failed') {
     return (
-      <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-4 py-20 text-center">
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+        className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-4 py-20 text-center"
+      >
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-error/15 font-heading text-xl font-bold text-error">
           !
         </div>
@@ -139,7 +158,7 @@ const BoardPage = () => {
         >
           Back to home
         </Link>
-      </div>
+      </motion.div>
     );
   }
 
@@ -167,7 +186,20 @@ const BoardPage = () => {
         <BoardTabs active={activeTab} onChange={setActiveTab} />
 
         <div className="mx-auto max-w-5xl px-4">
-          <div role="tabpanel" aria-label={TAB_LABELS[activeTab]} className="mt-5">
+          {/* Keyed remount per tab: the outgoing panel leaves instantly (no
+              blank gap while an exit runs, no height collapse between panels
+              of different heights) and the incoming one settles in with a
+              fast fade. Each panel owns its own internal entrance on top of
+              this — the fade is just the swap, not the choreography. */}
+          <motion.div
+            key={activeTab}
+            role="tabpanel"
+            aria-label={TAB_LABELS[activeTab]}
+            initial={reduceMotion ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+            className="mt-5"
+          >
             {activeTab === 'options' && (
               <>
                 <OptionsList onViewOnMap={() => setActiveTab('map')} />
@@ -188,7 +220,7 @@ const BoardPage = () => {
             {activeTab === 'people' && (
               <ParticipantList boardId={boardId} onViewOnMap={handleViewPersonOnMap} />
             )}
-          </div>
+          </motion.div>
         </div>
       </main>
     </div>
