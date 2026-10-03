@@ -3,13 +3,14 @@ import { useSelector } from 'react-redux';
 import { CheckCircle2, Settings } from 'lucide-react';
 import LockDecisionButton from './LockDecisionButton';
 import ClaimOwnershipButton from './ClaimOwnershipButton';
+import InviteButton from './InviteButton';
 import BoardManageMenu from './BoardManageMenu';
 
 /**
  * The board bar sits directly on the page background, flush between the app
  * nav and the tab bar — one chrome band instead of nav + card + tabs. The
  * owner's consequential action (lock) is the only solid coral element;
- * Manage is quiet ghost text beside it.
+ * Manage and Invite are quiet ghost text beside it.
  */
 const BoardHeader = ({ boardId }) => {
   const board = useSelector((state) => state.board.board);
@@ -49,6 +50,7 @@ const BoardHeader = ({ boardId }) => {
 
         <div className="flex shrink-0 flex-wrap items-center gap-1.5">
           {isOwner && <LockDecisionButton />}
+          <InviteButton />
           {isOwner && (
             <button
               type="button"
@@ -80,9 +82,7 @@ const BoardHeader = ({ boardId }) => {
         </div>
       )}
 
-      {isOwner && manageOpen && (
-        <BoardManageMenu onClose={() => setManageOpen(false)} />
-      )}
+      {isOwner && <BoardManageMenu open={manageOpen} onClose={() => setManageOpen(false)} />}
     </header>
   );
 };
