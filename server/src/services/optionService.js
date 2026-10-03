@@ -1,6 +1,7 @@
 import { Option } from '../models/Option.js';
 import { Location } from '../models/Location.js';
 import { Vote } from '../models/Vote.js';
+import { Comment } from '../models/Comment.js';
 import { uploadToB2, getSignedPhotoUrl } from '../utils/b2.js';
 import { createAppError } from '../utils/AppError.js';
 import { assertBoardOpen } from '../utils/boardGuard.js';
@@ -144,14 +145,27 @@ export const updateOption = async (optionId, patch) => {
 };
 
 export const deleteOption = async (optionId) => {
-  const option = await Option.findByIdAndDelete(optionId);
+  const option = await Option.findById(optionId);
   if (!option) {
     throw createAppError('Option not found', 404);
   }
 
-  if (option.locationId) {
-    await Location.findByIdAndDelete(option.locationId);
-  }
+  // Dependents go first. A vote or comment that outlives its option is an
+  // orphan nothing can render, aggregate, or ever clean up — and deleting the
+  // option first would open a window where it is gone but they aren't. Ordering
+  // it this way is the only way to keep a failed child delete from taking the
+  // option with it.
+  //
+  // Contrast with removeParticipant, which deliberately keeps a removed
+  // participant's votes and comments as history: there the records still mean
+  // something, here the thing they describe is gone.
+  await Promise.all([
+    option.locationId ? Location.findByIdAndDelete(option.locationId) : null,
+    Vote.deleteMany({ optionId: option._id }),
+    Comment.deleteMany({ optionId: option._id }),
+  ]);
+
+  await Option.deleteOne({ _id: option._id });
 
   return option;
 };

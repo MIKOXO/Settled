@@ -1,20 +1,15 @@
-import { Board } from '../models/Board.js';
 import { createAppError } from '../utils/AppError.js';
+import { canManageOption } from '../utils/optionGuard.js';
 
-export const requireCanAttachPhoto = async (req, _res, next) => {
-  const option = req.option;
-  const board = await Board.findById(option.boardId);
-  if (!board) {
-    return next(createAppError('Board not found', 404));
-  }
-
-  const isCreator = option.createdBy.toString() === req.participant.id;
-  const isOwner = board.ownerId.toString() === req.participant.id;
-
-  if (!isCreator && !isOwner) {
+// The photo is part of the option, so it follows the option's own rule (see
+// utils/optionGuard.js) rather than repeating it: creator OR owner. Board
+// membership is already established by requireOptionBoardMembership, and
+// requireAuth attached a role read fresh from the DB, so this reads no further
+// than the loaded option and the session — the previous Board lookup here only
+// re-derived the owner it already had.
+export const requireCanAttachPhoto = (req, _res, next) => {
+  if (!canManageOption(req.participant, req.option)) {
     return next(createAppError('Only the option creator or board owner can attach a photo', 403));
   }
-
-  req.board = board;
   return next();
 };
