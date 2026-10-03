@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { motion, useReducedMotion } from 'framer-motion';
-import { ChevronDown, ExternalLink, MapPin, MessageSquare } from 'lucide-react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ChevronDown, ExternalLink, Lightbulb, MapPin, MessageSquare } from 'lucide-react';
 import VoteButtons from '../voting/VoteButtons';
 import CommentThread from '../threads/CommentThread';
 import EditOptionForm from './EditOptionForm';
@@ -10,12 +10,18 @@ import { deleteOption } from '../../services/options';
 import { removeOption } from '../../store/boardSlice';
 
 const LeadingTag = () => (
-  <span className="flex shrink-0 items-center gap-1 rounded-full bg-accent-secondary/15 px-2 py-0.5 font-sans text-[11px] font-semibold text-accent-secondary">
+  <motion.span
+    initial={{ opacity: 0, scale: 0.7 }}
+    animate={{ opacity: 1, scale: 1 }}
+    exit={{ opacity: 0, scale: 0.7 }}
+    transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+    className="flex shrink-0 items-center gap-1 rounded-full bg-accent-secondary/15 px-2 py-0.5 font-sans text-[11px] font-semibold text-accent-secondary"
+  >
     Leading
-  </span>
+  </motion.span>
 );
 
-const OptionCard = ({ option, onViewOnMap, glowUniqueId }) => {
+const OptionCard = ({ option, onViewOnMap, glowUniqueId, enterDelay = 0 }) => {
   const {
     title,
     notes,
@@ -42,11 +48,21 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId }) => {
   return (
     <motion.article
       layout={reduceMotion ? false : 'position'}
+      initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={reduceMotion
-        ? undefined
-        : { type: 'spring', stiffness: 500, damping: 40 }}
+        ? { type: 'spring', stiffness: 500, damping: 40 }
+        : {
+            // Entrance values carry the stagger delay; the layout re-rank
+            // spring must not, or a live vote would reorder with a lag.
+            opacity: { duration: 0.2, delay: enterDelay },
+            y: { duration: 0.35, delay: enterDelay, ease: [0.22, 1, 0.36, 1] },
+            default: { type: 'spring', stiffness: 500, damping: 40 },
+          }}
       className={`relative rounded-card border bg-surface p-4 transition-colors duration-200 ${
-        isLeading ? 'border-accent-secondary/50' : 'border-border'
+        isLeading
+          ? 'border-accent-secondary/50 hover:border-accent-secondary/80'
+          : 'border-border hover:border-text-muted/30'
       }`}
     >
       {isLeading && (
@@ -70,7 +86,9 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId }) => {
             <h3 className="min-w-0 flex-1 font-heading text-base font-semibold leading-snug text-text-primary">
               {title}
             </h3>
-            {isLeading && <LeadingTag />}
+            <AnimatePresence initial={false} mode="popLayout">
+              {isLeading && <LeadingTag key="leading" />}
+            </AnimatePresence>
           </div>
 
           {/* Secondary block: photo thumbnail, notes, link — muted on purpose. */}
@@ -120,7 +138,18 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId }) => {
               className="flex items-center gap-1.5 rounded-btn px-2 py-1.5 font-sans text-sm text-text-muted transition-colors duration-200 hover:text-text-primary"
             >
               <MessageSquare className="h-4 w-4" />
-              <span className="font-mono text-xs">{commentCount}</span>
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span
+                  key={commentCount}
+                  initial={reduceMotion ? false : { y: 6, opacity: 0 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  exit={reduceMotion ? false : { y: -6, opacity: 0 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="inline-block font-mono text-xs"
+                >
+                  {commentCount}
+                </motion.span>
+              </AnimatePresence>
               <ChevronDown
                 className={`h-3.5 w-3.5 transition-transform duration-200 ${
                   threadOpen ? 'rotate-180' : ''
@@ -159,6 +188,12 @@ const OptionCard = ({ option, onViewOnMap, glowUniqueId }) => {
 
 const OptionsList = ({ onViewOnMap }) => {
   const options = useSelector((state) => state.board.options);
+  const reduceMotion = useReducedMotion();
+
+  // The stagger belongs to the options present at mount. A card added later
+  // (locally or via socket) still rises in, but with no queue position — its
+  // delay must be zero or a busy board would watch late options crawl.
+  const [mountIds] = useState(() => new Set(options.map((o) => o.id)));
 
   // Live ranking: cards glide up/down as scores change. The server's order
   // (createdAt desc) stays authoritative in the store — this is a derived
@@ -176,26 +211,35 @@ const OptionsList = ({ onViewOnMap }) => {
 
   if (options.length === 0) {
     return (
-      <div className="rounded-card border border-dashed border-border bg-surface px-6 py-14 text-center">
-        <p className="font-heading text-lg font-semibold text-text-primary">
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="rounded-card border border-dashed border-border bg-surface px-6 py-14 text-center"
+      >
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <Lightbulb className="h-5 w-5" />
+        </div>
+        <p className="mt-4 font-heading text-lg font-semibold text-text-primary">
           No options yet
         </p>
         <p className="mx-auto mt-2 max-w-sm font-sans text-sm text-text-muted">
           Be the first to propose one and get the discussion started.
         </p>
-      </div>
+      </motion.div>
     );
   }
 
   return (
     <section aria-label="Options">
       <div className="space-y-3">
-        {ranked.map((option) => (
+        {ranked.map((option, index) => (
           <OptionCard
             key={option.id}
             option={option}
             onViewOnMap={onViewOnMap}
             glowUniqueId={glowUniqueId}
+            enterDelay={mountIds.has(option.id) ? Math.min(index * 0.05, 0.4) : 0}
           />
         ))}
       </div>

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Check, ChevronLeft, ChevronRight, Loader2, Trash2, X } from 'lucide-react';
 import { clearAvailability, setAvailability } from '../../services/availability';
 import { upsertAvailability, removeAvailability } from '../../store/boardSlice';
@@ -57,6 +58,7 @@ const DayCell = ({
   isPending,
   onDayClick,
 }) => {
+  const reduceMotion = useReducedMotion();
   const agg = aggregated[dateKey];
   const freeCount = agg?.freeCount ?? 0;
   const totalCount = agg?.totalCount ?? 0;
@@ -84,26 +86,31 @@ const DayCell = ({
       disabled={isPast}
       aria-pressed={myStatus === 'free'}
       aria-label={label}
-      className={`relative flex h-12 flex-col items-center justify-center rounded-btn border transition-colors duration-150 ${statusClasses} ${
-        isSelected && !isPast ? 'ring-1 ring-accent' : ''
-      }`}
+      className={`relative flex h-12 flex-col items-center justify-center rounded-btn border transition-colors duration-150 ${statusClasses}`}
     >
       {isPending ? (
         <Loader2 className="absolute right-1 top-1 h-2.5 w-2.5 animate-spin text-text-muted" />
       ) : (
-        myStatus && (
-          <span
-            className={`absolute right-1 top-1 ${
-              myStatus === 'free' ? 'text-success' : 'text-error'
-            }`}
-          >
-            {myStatus === 'free' ? (
-              <Check className="h-2.5 w-2.5" />
-            ) : (
-              <X className="h-2.5 w-2.5" />
-            )}
-          </span>
-        )
+        <AnimatePresence mode="popLayout" initial={false}>
+          {myStatus && (
+            <motion.span
+              key={myStatus}
+              initial={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={reduceMotion ? false : { scale: 0.4, opacity: 0 }}
+              transition={{ duration: 0.15, ease: 'easeOut' }}
+              className={`absolute right-1 top-1 ${
+                myStatus === 'free' ? 'text-success' : 'text-error'
+              }`}
+            >
+              {myStatus === 'free' ? (
+                <Check className="h-2.5 w-2.5" />
+              ) : (
+                <X className="h-2.5 w-2.5" />
+              )}
+            </motion.span>
+          )}
+        </AnimatePresence>
       )}
 
       <span
@@ -121,8 +128,31 @@ const DayCell = ({
       )}
 
       {isToday && <span className="absolute bottom-1 h-1 w-1 rounded-full bg-accent" />}
+
+      {/* One shared layoutId: the ring glides to whichever day was tapped
+          instead of blinking off one cell and onto another. */}
+      {isSelected && !isPast && (
+        <motion.span
+          layoutId="availabilityDayRing"
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 rounded-btn ring-1 ring-accent"
+          transition={reduceMotion
+            ? { duration: 0 }
+            : { type: 'spring', stiffness: 500, damping: 40 }}
+        />
+      )}
     </button>
   );
+};
+
+const chipListVariants = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.035 } },
+};
+
+const chipVariants = {
+  hidden: { opacity: 0, y: 4 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.18, ease: 'easeOut' } },
 };
 
 const AvailabilityGrid = ({ boardId }) => {
@@ -130,13 +160,18 @@ const AvailabilityGrid = ({ boardId }) => {
   const availability = useSelector((state) => state.board.availability);
   const participants = useSelector((state) => state.board.participants);
   const myId = useSelector((state) => state.session?.id);
+  const reduceMotion = useReducedMotion();
 
   const currentMonth = useMemo(() => startOfMonth(new Date()), []);
   const today = useMemo(() => todayKey(), []);
-  const [viewMonth, setViewMonth] = useState(currentMonth);
+  // `dir` records which way the last month hop went, so the incoming grid
+  // slides in from the side the user is travelling toward.
+  const [view, setView] = useState({ month: currentMonth, dir: 1 });
   const [selectedDate, setSelectedDate] = useState(today);
   const [pending, setPending] = useState(null);
   const [error, setError] = useState(null);
+
+  const viewMonth = view.month;
 
   const cells = useMemo(() => buildMonthCells(viewMonth), [viewMonth]);
 
@@ -166,7 +201,7 @@ const AvailabilityGrid = ({ boardId }) => {
     const next = addMonths(viewMonth, delta);
     if (next < currentMonth) return;
 
-    setViewMonth(next);
+    setView({ month: next, dir: Math.sign(delta) });
     setSelectedDate(
       next.getTime() === currentMonth.getTime()
         ? today
@@ -228,7 +263,12 @@ const AvailabilityGrid = ({ boardId }) => {
   };
 
   return (
-    <section aria-label="Availability">
+    <motion.section
+      aria-label="Availability"
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+    >
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="font-sans text-sm text-text-muted">
           Tap a day to mark your availability
@@ -257,7 +297,18 @@ const AvailabilityGrid = ({ boardId }) => {
           </button>
 
           <h3 className="text-center font-heading text-sm font-semibold text-text-primary sm:text-base">
-            {formatMonthTitle(viewMonth)}
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={viewMonth.getTime()}
+                initial={reduceMotion ? false : { opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? false : { opacity: 0, y: -4 }}
+                transition={{ duration: 0.15, ease: 'easeOut' }}
+                className="inline-block"
+              >
+                {formatMonthTitle(viewMonth)}
+              </motion.span>
+            </AnimatePresence>
           </h3>
 
           <button
@@ -281,7 +332,15 @@ const AvailabilityGrid = ({ boardId }) => {
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-1">
+        {/* Enter-only on month change: the old grid leaves instantly (no
+            blank wait) and the new one slides in from the travel direction. */}
+        <motion.div
+          key={viewMonth.getTime()}
+          initial={reduceMotion ? false : { opacity: 0, x: 20 * view.dir }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+          className="grid grid-cols-7 gap-1"
+        >
           {cells.map((cell, index) =>
             cell ? (
               <DayCell
@@ -300,7 +359,7 @@ const AvailabilityGrid = ({ boardId }) => {
               <span key={`blank-${index}`} aria-hidden="true" />
             ),
           )}
-        </div>
+        </motion.div>
 
         <div className="mt-4 border-t border-border pt-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -317,25 +376,45 @@ const AvailabilityGrid = ({ boardId }) => {
 
             {selectedAgg && selectedAgg.totalCount > 0 && (
               <span className="font-mono text-xs text-text-muted">
-                <span className="text-success">{selectedAgg.freeCount}</span> /{' '}
-                {selectedAgg.totalCount} free
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.span
+                    key={`${selectedAgg.freeCount}-${selectedAgg.totalCount}`}
+                    initial={reduceMotion ? false : { y: 6, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    exit={reduceMotion ? false : { y: -6, opacity: 0 }}
+                    transition={{ duration: 0.15, ease: 'easeOut' }}
+                    className="inline-block"
+                  >
+                    <span className="text-success">{selectedAgg.freeCount}</span> /{' '}
+                    {selectedAgg.totalCount} free
+                  </motion.span>
+                </AnimatePresence>
               </span>
             )}
           </div>
 
           {selectedFree.length > 0 || selectedBusy.length > 0 ? (
-            <div className="mt-3 space-y-2">
+            // Keyed by day: picking another date replays the chip stagger so
+            // the panel reads as freshly resolved, not silently re-labelled.
+            <motion.div
+              key={selectedDate}
+              className="mt-3 space-y-2"
+              variants={chipListVariants}
+              initial={reduceMotion ? false : 'hidden'}
+              animate="show"
+            >
               {selectedFree.length > 0 && (
                 <div>
                   <span className="font-sans text-xs font-semibold text-success">Free</span>
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     {selectedFree.map((name) => (
-                      <span
+                      <motion.span
                         key={name}
+                        variants={chipVariants}
                         className="rounded-btn bg-success/10 px-2 py-0.5 font-sans text-xs text-success"
                       >
                         {name}
-                      </span>
+                      </motion.span>
                     ))}
                   </div>
                 </div>
@@ -346,17 +425,18 @@ const AvailabilityGrid = ({ boardId }) => {
                   <span className="font-sans text-xs font-semibold text-error">Busy</span>
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     {selectedBusy.map((name) => (
-                      <span
+                      <motion.span
                         key={name}
+                        variants={chipVariants}
                         className="rounded-btn bg-error/10 px-2 py-0.5 font-sans text-xs text-error"
                       >
                         {name}
-                      </span>
+                      </motion.span>
                     ))}
                   </div>
                 </div>
               )}
-            </div>
+            </motion.div>
           ) : (
             <p className="mt-3 font-sans text-xs text-text-muted">
               No availability set for this day yet.
@@ -398,7 +478,7 @@ const AvailabilityGrid = ({ boardId }) => {
           </div>
         </div>
       </div>
-    </section>
+    </motion.section>
   );
 };
 

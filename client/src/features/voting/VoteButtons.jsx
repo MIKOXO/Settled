@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { castVote, removeVote } from '../../services/votes';
 import { applyVoteUpdate } from '../../store/boardSlice';
@@ -58,7 +58,20 @@ const VoteButton = ({
       } ${locked ? 'cursor-not-allowed opacity-50' : ''} ${disabled ? 'cursor-wait opacity-60' : ''}`}
     >
       <Icon className="h-4 w-4" />
-      <span className="font-mono text-xs">{count}</span>
+      {/* The tally is the board's liveliest number — a vote landing from
+          another client should read as a change, not a silent text swap. */}
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={count}
+          initial={reduceMotion ? false : { y: 6, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={reduceMotion ? false : { y: -6, opacity: 0 }}
+          transition={{ duration: 0.15, ease: 'easeOut' }}
+          className="inline-block font-mono text-xs"
+        >
+          {count}
+        </motion.span>
+      </AnimatePresence>
     </motion.button>
   );
 };

@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { useSelector } from 'react-redux';
 import { Calendar, ListFilter, MapPin, UsersRound } from 'lucide-react';
 
@@ -62,7 +62,20 @@ const BoardTabs = ({ active, onChange }) => {
                     isActive ? 'bg-accent/15 text-accent' : 'bg-surface-2 text-text-muted'
                   }`}
                 >
-                  {count}
+                  {/* Keyed on the value: a live change (vote cast, pin added,
+                      someone joins) swaps the digit with a quick pop instead of
+                      a silent text update. */}
+                  <AnimatePresence mode="popLayout" initial={false}>
+                    <motion.span
+                      key={count}
+                      initial={reduceMotion ? false : { scale: 0.5, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ type: 'spring', stiffness: 600, damping: 26 }}
+                      className="inline-block"
+                    >
+                      {count}
+                    </motion.span>
+                  </AnimatePresence>
                 </span>
               )}
               {isActive && (

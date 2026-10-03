@@ -1,5 +1,6 @@
 import { useSelector, useDispatch } from 'react-redux';
-import { MapPin, X } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { MapPin, UsersRound, X } from 'lucide-react';
 import { removeParticipant } from '../../services/board';
 import { setParticipants } from '../../store/boardSlice';
 import ConfirmButton from '../../components/ConfirmButton';
@@ -36,6 +37,7 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
   const session = useSelector((state) => state.session);
   const participants = useSelector((state) => state.board.participants);
   const participantLocations = useSelector((state) => state.board.participantLocations);
+  const reduceMotion = useReducedMotion();
 
   const isOwner = session?.role === 'owner';
   const sharedIds = new Set(participantLocations.map((loc) => loc.participantId));
@@ -47,12 +49,20 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
 
   if (participants.length === 0) {
     return (
-      <div className="rounded-card border border-dashed border-border bg-surface px-6 py-14 text-center">
-        <p className="font-heading text-lg font-semibold text-text-primary">Nobody here yet</p>
+      <motion.div
+        initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+        className="rounded-card border border-dashed border-border bg-surface px-6 py-14 text-center"
+      >
+        <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-full bg-accent/10 text-accent">
+          <UsersRound className="h-5 w-5" />
+        </div>
+        <p className="mt-4 font-heading text-lg font-semibold text-text-primary">Nobody here yet</p>
         <p className="mx-auto mt-2 max-w-sm font-sans text-sm text-text-muted">
           Share the invite link to get the first person on this board.
         </p>
-      </div>
+      </motion.div>
     );
   }
 
@@ -66,7 +76,7 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
       </div>
 
       <ul className="rounded-card border border-border bg-surface p-2">
-        {participants.map((p) => {
+        {participants.map((p, index) => {
           const isMe = p.id === session?.id;
           const hasLocation = sharedIds.has(p.id);
 
@@ -96,15 +106,22 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
           );
 
           return (
-            <li
+            <motion.li
               key={p.id}
+              initial={reduceMotion ? false : { opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.25,
+                delay: Math.min(index * 0.04, 0.32),
+                ease: [0.22, 1, 0.36, 1],
+              }}
               className="flex items-center gap-3 rounded-btn px-2 py-2 transition-colors duration-150 hover:bg-surface-2/60"
             >
               <span
                 aria-hidden="true"
                 className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[11px] ${
                   p.role === 'owner'
-                    ? 'bg-accent-secondary/15 text-accent-secondary'
+                    ? 'bg-accent-secondary/15 text-accent-secondary ring-1 ring-accent-secondary/40'
                     : 'bg-surface-2 text-text-muted'
                 }`}
               >
@@ -135,7 +152,7 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
                   triggerLabel={`Remove ${p.displayName}`}
                 />
               )}
-            </li>
+            </motion.li>
           );
         })}
       </ul>

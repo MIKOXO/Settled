@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertTriangle, Lock, Loader2 } from 'lucide-react';
 import { lockDecision } from '../../services/board';
 import { setBoard } from '../../store/boardSlice';
@@ -30,6 +31,7 @@ const LockDecisionButton = () => {
   const [error, setError] = useState(null);
   const [overrideSeen, setOverrideSeen] = useState(false);
   const rootRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
   useDismissable(rootRef, open, () => setOpen(false));
 
@@ -87,77 +89,87 @@ const LockDecisionButton = () => {
         Lock decision
       </button>
 
-      {open && (
-        <div className="absolute right-0 z-30 mt-2 w-72 rounded-card border border-border bg-surface-2 p-4 shadow-xl shadow-black/40">
-          <p className="mb-3 font-sans text-xs text-text-muted">
-            Pick the option to lock in as the final decision.
-          </p>
-
-          <select
-            value={value}
-            onChange={(e) => {
-              setSelectedId(e.target.value);
-              setOverrideSeen(false);
-            }}
-            className="w-full rounded-btn border border-border bg-surface px-3 py-2 font-sans text-sm text-text-primary focus:outline-none focus:border-accent transition-colors duration-200"
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            // Same settle as the Invite popover and Manage disclosure — every
+            // header panel grows out of its trigger the same way.
+            initial={reduceMotion ? false : { opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reduceMotion ? false : { opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="absolute right-0 z-30 mt-2 w-72 origin-top-right rounded-card border border-border bg-surface-2 p-4 shadow-xl shadow-black/40"
           >
-            {options.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.title}
-                {o.isLeading ? ' (leading)' : ''}
-              </option>
-            ))}
-          </select>
-
-          {error && (
-            <p className="mt-2 rounded-btn bg-error/10 px-3 py-2 font-sans text-sm text-error">
-              {error}
+            <p className="mb-3 font-sans text-xs text-text-muted">
+              Pick the option to lock in as the final decision.
             </p>
-          )}
 
-          {isOverride && (
-            <div className="mt-3 rounded-btn border border-error/40 bg-error/10 px-3 py-2.5">
-              <p className="flex items-start gap-2 font-sans text-sm leading-relaxed text-error">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>
-                  {leadingSummary(leadingOptions)} with {scoreLabel}. Lock in{' '}
-                  {selectedOption.title} instead?
-                </span>
+            <select
+              value={value}
+              onChange={(e) => {
+                setSelectedId(e.target.value);
+                setOverrideSeen(false);
+              }}
+              className="w-full rounded-btn border border-border bg-surface px-3 py-2 font-sans text-sm text-text-primary focus:outline-none focus:border-accent transition-colors duration-200"
+            >
+              {options.map((o) => (
+                <option key={o.id} value={o.id}>
+                  {o.title}
+                  {o.isLeading ? ' (leading)' : ''}
+                </option>
+              ))}
+            </select>
+
+            {error && (
+              <p className="mt-2 rounded-btn bg-error/10 px-3 py-2 font-sans text-sm text-error">
+                {error}
               </p>
-
-              <label className="mt-2.5 flex cursor-pointer items-start gap-2 font-sans text-xs leading-relaxed text-text-muted">
-                <input
-                  type="checkbox"
-                  checked={overrideSeen}
-                  onChange={(e) => setOverrideSeen(e.target.checked)}
-                  className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-error"
-                />
-                I understand this isn't the leading option
-              </label>
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={handleLock}
-            disabled={submitting || !value || (isOverride && !overrideSeen)}
-            className={`mt-3 flex w-full items-center justify-center gap-2 rounded-btn px-4 py-2 font-sans text-sm font-semibold text-background transition-all duration-200 hover:brightness-110 disabled:opacity-60 ${
-              isOverride ? 'bg-error' : 'bg-accent'
-            }`}
-          >
-            {submitting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Lock className="h-4 w-4" />
             )}
-            {submitting
-              ? 'Locking...'
-              : isOverride
-                ? 'Override and lock'
-                : 'Confirm lock'}
-          </button>
-        </div>
-      )}
+
+            {isOverride && (
+              <div className="mt-3 rounded-btn border border-error/40 bg-error/10 px-3 py-2.5">
+                <p className="flex items-start gap-2 font-sans text-sm leading-relaxed text-error">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    {leadingSummary(leadingOptions)} with {scoreLabel}. Lock in{' '}
+                    {selectedOption.title} instead?
+                  </span>
+                </p>
+
+                <label className="mt-2.5 flex cursor-pointer items-start gap-2 font-sans text-xs leading-relaxed text-text-muted">
+                  <input
+                    type="checkbox"
+                    checked={overrideSeen}
+                    onChange={(e) => setOverrideSeen(e.target.checked)}
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 cursor-pointer accent-error"
+                  />
+                  I understand this isn't the leading option
+                </label>
+              </div>
+            )}
+
+            <button
+              type="button"
+              onClick={handleLock}
+              disabled={submitting || !value || (isOverride && !overrideSeen)}
+              className={`mt-3 flex w-full items-center justify-center gap-2 rounded-btn px-4 py-2 font-sans text-sm font-semibold text-background transition-all duration-200 hover:brightness-110 disabled:opacity-60 ${
+                isOverride ? 'bg-error' : 'bg-accent'
+              }`}
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Lock className="h-4 w-4" />
+              )}
+              {submitting
+                ? 'Locking...'
+                : isOverride
+                  ? 'Override and lock'
+                  : 'Confirm lock'}
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

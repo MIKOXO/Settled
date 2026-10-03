@@ -70,12 +70,15 @@ const MapClickHandler = ({ onMapClick }) => {
   return null;
 };
 
+// The device's own position. Warm-neutral rather than the usual map-blue —
+// blue is off-palette for this product, and white-on-dark reads on both the
+// standard and satellite tiles.
 const CURRENT_POS_ICON = divIcon({
   className: '',
   html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
     <div style="position:relative;width:20px;height:20px">
-      <div style="position:absolute;inset:-8px;border-radius:50%;background:rgba(59,130,246,0.18);animation:currentPulse 2s ease-out infinite"></div>
-      <div style="position:absolute;inset:0;border-radius:50%;background:#3B82F6;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.4)"></div>
+      <div style="position:absolute;inset:-8px;border-radius:50%;background:rgb(var(--text-primary-rgb) / 0.22);animation:currentPulse 2s ease-out infinite"></div>
+      <div style="position:absolute;inset:0;border-radius:50%;background:var(--text-primary);border:3px solid var(--bg-base);box-shadow:0 1px 6px rgba(0,0,0,.5)"></div>
     </div>
     <div style="margin-top:4px;padding:3px 8px;border-radius:4px;background:var(--bg-surface);border:1px solid var(--border-default);white-space:nowrap;font-family:var(--font-sans);font-size:11px;font-weight:600;color:var(--text-primary);box-shadow:0 1px 4px rgba(0,0,0,.3)">
       You are here
@@ -323,7 +326,7 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false, focus = null })
           People
         </span>
         <span className="flex items-center gap-1.5 font-sans text-xs text-text-muted">
-          <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: '#3B82F6' }} />
+          <span className="inline-block h-2.5 w-2.5 rounded-full bg-text-primary ring-1 ring-background" />
           You
         </span>
       </div>

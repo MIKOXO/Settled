@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import BoardMap from './BoardMap';
 import LocationOptIn from './LocationOptIn';
 import PlaceDetailsPanel from './PlaceDetailsPanel';
@@ -19,6 +20,7 @@ const BoardMapSection = ({ boardId, onProposePlace, focusParticipant }) => {
   const participants = useSelector((state) => state.board.participants);
   const participantLocations = useSelector((state) => state.board.participantLocations);
   const [sharePrefill, setSharePrefill] = useState(null);
+  const reduceMotion = useReducedMotion();
 
   // A person handed over from the People tab. Coordinates come from the store
   // — the same pins the map is already drawing — so there is nothing extra to
@@ -97,7 +99,13 @@ const BoardMapSection = ({ boardId, onProposePlace, focusParticipant }) => {
   }, [clearSelection]);
 
   return (
-    <section aria-label="Board map" className="space-y-4">
+    <motion.section
+      aria-label="Board map"
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+      className="space-y-4"
+    >
       <PlaceSearch
         onSelect={handleSearchSelect}
         placeholder="Search this area for a place..."
@@ -114,22 +122,34 @@ const BoardMapSection = ({ boardId, onProposePlace, focusParticipant }) => {
           />
         </div>
 
-        {isOpen && (
-          <div className="absolute inset-x-0 bottom-0 z-[500] max-h-[70%] lg:static lg:max-h-none lg:w-80 lg:shrink-0 lg:self-stretch">
-            <PlaceDetailsPanel
-              place={place}
-              status={status}
-              error={error}
-              onClose={clearSelection}
-              onPropose={handlePropose}
-              onShareLocation={handleShareLocation}
-            />
-          </div>
-        )}
+        {/* The sheet settles up from the map edge on mobile and reads the
+            same on desktop — a tapped pin should feel like it surfaced
+            something, not flipped a panel on. */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              key="place-details"
+              initial={reduceMotion ? false : { opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={reduceMotion ? false : { opacity: 0, y: 20 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 34 }}
+              className="absolute inset-x-0 bottom-0 z-[500] max-h-[70%] lg:static lg:max-h-none lg:w-80 lg:shrink-0 lg:self-stretch"
+            >
+              <PlaceDetailsPanel
+                place={place}
+                status={status}
+                error={error}
+                onClose={clearSelection}
+                onPropose={handlePropose}
+                onShareLocation={handleShareLocation}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <LocationOptIn boardId={boardId} prefill={sharePrefill} />
-    </section>
+    </motion.section>
   );
 };
 

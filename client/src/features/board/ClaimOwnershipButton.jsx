@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ShieldCheck, Loader2 } from 'lucide-react';
 import { claimOwnership } from '../../services/board';
 import { setSession } from '../../store/sessionSlice';
@@ -10,6 +11,7 @@ const ClaimOwnershipButton = ({ boardId }) => {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const rootRef = useRef(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     if (!error) return undefined;
@@ -54,11 +56,19 @@ const ClaimOwnershipButton = ({ boardId }) => {
         {submitting ? 'Claiming...' : 'Claim ownership'}
       </button>
 
-      {error && (
-        <div className="absolute right-0 z-30 mt-2 w-64 rounded-card border border-error/30 bg-surface-2 p-3 shadow-xl shadow-black/40">
-          <p className="font-sans text-xs text-error">{error}</p>
-        </div>
-      )}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={reduceMotion ? false : { opacity: 0, y: -4, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={reduceMotion ? false : { opacity: 0, y: -4, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: 'easeOut' }}
+            className="absolute right-0 z-30 mt-2 w-64 origin-top-right rounded-card border border-error/30 bg-surface-2 p-3 shadow-xl shadow-black/40"
+          >
+            <p className="font-sans text-xs text-error">{error}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
