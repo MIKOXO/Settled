@@ -14,30 +14,41 @@ import useSelectedPlace from './useSelectedPlace';
  * is delegated upward to BoardPage via `onProposePlace`, which keeps this
  * feature from reaching into the options feature.
  */
-const BoardMapSection = ({ boardId, onProposePlace, focusParticipant }) => {
+const BoardMapSection = ({ boardId, onProposePlace, focus }) => {
   const { place, status, error, isOpen, selectPlace, inspectCoordinates, clearSelection } =
     useSelectedPlace();
   const participants = useSelector((state) => state.board.participants);
+  const options = useSelector((state) => state.board.options);
   const participantLocations = useSelector((state) => state.board.participantLocations);
+  const optionLocations = useSelector((state) => state.board.optionLocations);
   const [sharePrefill, setSharePrefill] = useState(null);
   const reduceMotion = useReducedMotion();
 
-  // A person handed over from the People tab. Coordinates come from the store
-  // — the same pins the map is already drawing — so there is nothing extra to
-  // resolve. A `nonce` keeps repeat handoffs distinguishable.
+  // A pin handed over from another tab — a person from People, an option from
+  // its card's place chip. Coordinates come from the store — the same pins
+  // the map is already drawing — so there is nothing extra to resolve. A
+  // `nonce` keeps repeat handoffs distinguishable.
   const focusTarget = useMemo(() => {
-    if (!focusParticipant) return null;
-    const loc = participantLocations.find(
-      (l) => l.participantId === focusParticipant.participantId,
-    );
-    if (!loc) return null;
-    return {
-      participantId: loc.participantId,
-      lat: loc.lat,
-      lng: loc.lng,
-      nonce: focusParticipant.nonce,
-    };
-  }, [focusParticipant, participantLocations]);
+    if (!focus) return null;
+    if (focus.optionId) {
+      const loc = optionLocations.find((l) => l.optionId === focus.optionId);
+      if (!loc) return null;
+      return { optionId: loc.optionId, lat: loc.lat, lng: loc.lng, nonce: focus.nonce };
+    }
+    if (focus.participantId) {
+      const loc = participantLocations.find(
+        (l) => l.participantId === focus.participantId,
+      );
+      if (!loc) return null;
+      return {
+        participantId: loc.participantId,
+        lat: loc.lat,
+        lng: loc.lng,
+        nonce: focus.nonce,
+      };
+    }
+    return null;
+  }, [focus, optionLocations, participantLocations]);
 
   // Selects the handed-over pin so the map and the details panel agree on what
   // is being looked at. Guarded by nonce so a later location update can't
@@ -45,8 +56,27 @@ const BoardMapSection = ({ boardId, onProposePlace, focusParticipant }) => {
   const handledFocus = useRef(null);
   useEffect(() => {
     if (!focusTarget || handledFocus.current === focusTarget.nonce) return;
+
+    if (focusTarget.optionId) {
+      const loc = optionLocations.find((l) => l.optionId === focusTarget.optionId);
+      if (!loc) return;
+
+      handledFocus.current = focusTarget.nonce;
+      selectPlace({
+        name:
+          options.find((o) => o.id === loc.optionId)?.title ?? loc.placeName ?? 'Option',
+        displayName: loc.placeName ?? null,
+        lat: loc.lat,
+        lng: loc.lng,
+        address: null,
+        details: {},
+        source: 'option',
+      });
+      return;
+    }
+
     const loc = participantLocations.find(
-      (l) => l.participantId === focusParticipant?.participantId,
+      (l) => l.participantId === focusTarget.participantId,
     );
     if (!loc) return;
 
@@ -61,7 +91,7 @@ const BoardMapSection = ({ boardId, onProposePlace, focusParticipant }) => {
       details: {},
       source: 'participant',
     });
-  }, [focusTarget, focusParticipant, participantLocations, participants, selectPlace]);
+  }, [focusTarget, optionLocations, participantLocations, options, participants, selectPlace]);
 
   const handleSearchSelect = useCallback(
     (result) => {

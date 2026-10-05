@@ -23,20 +23,30 @@ const SATELLITE_LABELS_URL =
 const BLANK_TILE =
   'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
 
-const makeOptionIcon = (isLeading) => divIcon({
-  className: '',
-  html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
-    <div style="width:${isLeading ? 36 : 30}px;height:${isLeading ? 36 : 30}px;border-radius:50%;background:${isLeading ? 'var(--accent-secondary)' : 'var(--accent-primary)'};border:3px solid var(--bg-surface);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)">
-      ${isLeading ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--bg-surface)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>' : '<div style="width:8px;height:8px;border-radius:50%;background:var(--text-primary)"></div>'}
-    </div>
-    <div style="margin-top:2px;padding:2px 6px;border-radius:4px;background:var(--bg-surface);border:1px solid var(--border-default);white-space:nowrap;font-family:var(--font-sans);font-size:11px;font-weight:600;color:var(--text-primary);box-shadow:0 1px 4px rgba(0,0,0,.3);max-width:120px;overflow:hidden;text-overflow:ellipsis">
-      ${isLeading ? '★ ' : ''}${'Option'}
-    </div>
-  </div>`,
-  iconSize: [isLeading ? 36 : 30, isLeading ? 52 : 46],
-  iconAnchor: [isLeading ? 18 : 15, isLeading ? 52 : 46],
-  popupAnchor: [0, isLeading ? -52 : -46],
-});
+// Option pins. `highlighted` wraps the pin in the same coral ring the People
+// focus uses — it's the map's "this is the pin you were sent here to see"
+// treatment, whichever tab handed it over.
+const makeOptionIcon = (isLeading, highlighted = false) => {
+  const size = isLeading ? 36 : 30;
+  const pad = highlighted ? 8 : 0;
+  return divIcon({
+    className: '',
+    html: `<div style="position:relative;display:flex;flex-direction:column;align-items:center">
+      <div style="position:relative;width:${size}px;height:${size}px">
+        ${highlighted ? '<div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--accent-primary);background:rgba(255,107,74,0.14);box-shadow:0 2px 10px rgba(0,0,0,.45)"></div>' : ''}
+        <div style="position:absolute;inset:0;border-radius:50%;background:${isLeading ? 'var(--accent-secondary)' : 'var(--accent-primary)'};border:3px solid var(--bg-surface);display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.4)">
+          ${isLeading ? '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--bg-surface)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>' : '<div style="width:8px;height:8px;border-radius:50%;background:var(--text-primary)"></div>'}
+        </div>
+      </div>
+      <div style="margin-top:2px;padding:2px 6px;border-radius:4px;background:var(--bg-surface);border:1px solid var(--border-default);white-space:nowrap;font-family:var(--font-sans);font-size:11px;font-weight:600;color:var(--text-primary);box-shadow:0 1px 4px rgba(0,0,0,.3);max-width:120px;overflow:hidden;text-overflow:ellipsis">
+        ${isLeading ? '★ ' : ''}${'Option'}
+      </div>
+    </div>`,
+    iconSize: [size + pad, size + 16 + pad],
+    iconAnchor: [(size + pad) / 2, size + 16 + pad],
+    popupAnchor: [0, -(size + 16 + pad)],
+  });
+};
 
 /**
  * People pins. `highlighted` adds a coral ring — the map tab's focus treatment
@@ -187,7 +197,18 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false, focus = null })
   }, [options]);
 
   // A fresh divIcon makes react-leaflet swap the marker's DOM node, so the
-  // icons are built once per real change instead of once per render.
+  // icons are built once per real change instead of once per render. Option
+  // pins have exactly four states, so the whole set is built once, period.
+  const optionIcons = useMemo(
+    () => ({
+      plain: makeOptionIcon(false, false),
+      leading: makeOptionIcon(true, false),
+      plainFocused: makeOptionIcon(false, true),
+      leadingFocused: makeOptionIcon(true, true),
+    }),
+    [],
+  );
+
   const participantIcons = useMemo(() => {
     const map = {};
     for (const loc of participantLocations) {
@@ -264,13 +285,17 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false, focus = null })
         {optionLocations.map((loc, i) => {
           const option = optionByOptionId[loc.optionId];
           const isLeading = option?.isLeading;
-          const icon = makeOptionIcon(isLeading);
+          const isFocused = focus?.optionId === loc.optionId;
+          const icon = isFocused
+            ? (isLeading ? optionIcons.leadingFocused : optionIcons.plainFocused)
+            : (isLeading ? optionIcons.leading : optionIcons.plain);
 
           return (
             <Marker
               key={`opt-${loc.optionId ?? i}`}
               position={[loc.lat, loc.lng]}
               icon={icon}
+              zIndexOffset={isFocused ? 1000 : 0}
               eventHandlers={{
                 click: () =>
                   onSelectPin?.({

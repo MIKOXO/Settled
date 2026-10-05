@@ -146,8 +146,9 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
             </AnimatePresence>
           </div>
 
-          {/* Secondary block: photo thumbnail, notes, link — muted on purpose. */}
-          {(photoUrl || notes || link) && (
+          {/* Secondary block: photo thumbnail, notes, link, place — muted on
+              purpose. */}
+          {(photoUrl || notes || link || location) && (
             <div className="mt-3">
               {photoUrl && (
                 <img
@@ -176,10 +177,29 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
                   <span className="truncate">{link}</span>
                 </a>
               )}
+
+              {/* The place as a tappable chip, not a bare action-row icon:
+                  it names the spot and flies the map to the pin. Falls back
+                  to coordinates when the pin was dropped manually. */}
+              {location && (
+                <button
+                  type="button"
+                  onClick={() => onViewOnMap(option.id)}
+                  title="View on the map"
+                  className={`inline-flex max-w-full items-center gap-1.5 rounded-btn border border-border bg-surface-2/60 px-2 py-1 font-sans text-xs text-text-muted transition-colors duration-200 hover:border-accent/50 hover:text-accent ${
+                    photoUrl || notes || link ? 'mt-2' : ''
+                  }`}
+                >
+                  <MapPin className="h-3.5 w-3.5 shrink-0 text-accent" />
+                  <span className="truncate">
+                    {location.placeName ?? `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`}
+                  </span>
+                </button>
+              )}
             </div>
           )}
 
-          {/* Single action row: vote, discuss, locate, and — for the option's
+          {/* Single action row: score, vote, discuss, and — for the option's
               creator and the owner — an overflow menu holding edit and delete.
               Wraps because the delete confirm is wider than the ⋯ trigger it
               replaces, and a narrow phone shouldn't push it off the row. */}
@@ -212,18 +232,6 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
                 }`}
               />
             </button>
-
-            {location && (
-              <button
-                type="button"
-                onClick={onViewOnMap}
-                title="View on map"
-                aria-label="View on map"
-                className="flex items-center gap-1.5 rounded-btn px-2 py-1.5 font-sans text-xs text-text-muted transition-colors duration-200 hover:text-accent"
-              >
-                <MapPin className="h-4 w-4" />
-              </button>
-            )}
 
             {canManage && (
               <div className="ml-auto flex items-center">
