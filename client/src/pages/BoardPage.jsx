@@ -52,11 +52,18 @@ const BoardPage = () => {
     setActiveTab('options');
   };
 
-  // And the same in reverse: the People tab sends a participant to the map.
-  // The nonce lets the map re-focus on someone it is already focused on.
+  // And the same in reverse: the People tab sends a participant to the map,
+  // an option card's place chip sends an option pin. The nonce lets the map
+  // re-focus on a target it is already focused on.
   const handleViewPersonOnMap = (participantId) => {
     focusNonce.current += 1;
     setMapFocus({ participantId, nonce: focusNonce.current });
+    setActiveTab('map');
+  };
+
+  const handleViewOptionOnMap = (optionId) => {
+    focusNonce.current += 1;
+    setMapFocus({ optionId, nonce: focusNonce.current });
     setActiveTab('map');
   };
 
@@ -206,7 +213,7 @@ const BoardPage = () => {
               // map-tab handoff opening it) below the fold.
               <div className="max-w-3xl">
                 <ProposeOptionForm prefill={optionPrefill} />
-                <OptionsList onViewOnMap={() => setActiveTab('map')} />
+                <OptionsList onViewOnMap={handleViewOptionOnMap} />
               </div>
             )}
 
@@ -216,7 +223,7 @@ const BoardPage = () => {
               <BoardMapSection
                 boardId={boardId}
                 onProposePlace={handleProposePlace}
-                focusParticipant={mapFocus}
+                focus={mapFocus}
               />
             )}
 
