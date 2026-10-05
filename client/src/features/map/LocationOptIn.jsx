@@ -34,6 +34,8 @@ const LocationOptIn = ({ boardId, prefill }) => {
     setPendingShare(prefill);
   }
 
+  // The location schema's `label` is .optional(), not nullable — omit it
+  // rather than send null, same rule as the option form's placeName.
   const confirmShare = async () => {
     if (!pendingShare) return;
     setSubmitting(true);
@@ -42,7 +44,7 @@ const LocationOptIn = ({ boardId, prefill }) => {
       const res = await setMyLocation(boardId, {
         lat: pendingShare.lat,
         lng: pendingShare.lng,
-        label: pendingShare.placeName,
+        ...(pendingShare.placeName ? { label: pendingShare.placeName } : {}),
       });
       dispatch(upsertParticipantLocation(res));
       setPendingShare(null);
@@ -61,7 +63,7 @@ const LocationOptIn = ({ boardId, prefill }) => {
       const res = await setMyLocation(boardId, {
         lat: place.lat,
         lng: place.lng,
-        label: place.placeName,
+        ...(place.placeName ? { label: place.placeName } : {}),
       });
       dispatch(upsertParticipantLocation(res));
       setPickMode(null);
@@ -76,7 +78,7 @@ const LocationOptIn = ({ boardId, prefill }) => {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await setMyLocation(boardId, { lat, lng, label: null });
+      const res = await setMyLocation(boardId, { lat, lng });
       dispatch(upsertParticipantLocation(res));
       setPickMode(null);
     } catch (err) {

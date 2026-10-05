@@ -102,8 +102,11 @@ const ProposeOptionForm = ({ prefill }) => {
           location: {
             lat: location.lat,
             lng: location.lng,
-            placeName: location.placeName,
             placeSource: location.placeSource,
+            // Same rule as notes/link: the schema's placeName is .optional(),
+            // not nullable — a manual map pin has no name, and explicit null
+            // fails Zod with a 400.
+            ...(location.placeName ? { placeName: location.placeName } : {}),
           },
         } : {}),
       });
@@ -115,7 +118,10 @@ const ProposeOptionForm = ({ prefill }) => {
         option = photoResult.option;
       }
 
-      if (photo) {
+      // The create endpoint returns the raw doc — locationId unpopulated —
+      // so a location-attached create refetches like the photo path: the list
+      // endpoint returns the enriched location the card's pin button needs.
+      if (photo || location) {
         const refreshed = await fetchOptions(boardId);
         dispatch(setOptions(refreshed.options));
       } else {
