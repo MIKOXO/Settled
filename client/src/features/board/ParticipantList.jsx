@@ -4,14 +4,7 @@ import { MapPin, UsersRound, X } from 'lucide-react';
 import { removeParticipant } from '../../services/board';
 import { setParticipants } from '../../store/boardSlice';
 import ConfirmButton from '../../components/ConfirmButton';
-
-const initialsOf = (displayName) =>
-  (displayName ?? '')
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? '')
-    .join('');
+import initialsOf from '../../utils/initials';
 
 const RoleBadge = ({ role }) =>
   role === 'owner' ? (

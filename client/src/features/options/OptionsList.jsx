@@ -8,6 +8,7 @@ import EditOptionForm from './EditOptionForm';
 import OptionActions from './OptionActions';
 import { deleteOption } from '../../services/options';
 import { removeOption } from '../../store/boardSlice';
+import initialsOf from '../../utils/initials';
 
 const LeadingTag = () => (
   <motion.span
@@ -53,6 +54,24 @@ const ScoreChip = ({ score }) => {
   );
 };
 
+// Who proposed it, as a tag rather than a line of text: initials avatar in
+// the brand coral + the display name, quiet enough to sit next to the title
+// without competing with the Leading tag.
+const ProposerTag = ({ name }) => (
+  <span
+    title={`Proposed by ${name}`}
+    className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-surface-2 py-0.5 pl-0.5 pr-2 font-sans text-[11px] font-medium text-text-muted"
+  >
+    <span
+      aria-hidden="true"
+      className="flex h-4 w-4 items-center justify-center rounded-full bg-accent/15 font-mono text-[8px] font-semibold text-accent"
+    >
+      {initialsOf(name)}
+    </span>
+    {name}
+  </span>
+);
+
 const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
   const {
     title,
@@ -65,9 +84,17 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
   } = option;
   const dispatch = useDispatch();
   const session = useSelector((state) => state.session);
+  const proposer = useSelector((state) =>
+    state.board.participants.find((p) => p.id === option.createdBy),
+  );
   const [threadOpen, setThreadOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const reduceMotion = useReducedMotion();
+
+  // The proposer may have left the board since (options outlive membership)
+  // — fall back gracefully, and name yourself as yourself.
+  const proposerName =
+    option.createdBy === session?.id ? 'You' : (proposer?.displayName ?? 'Someone');
 
   // Mirrors the server's rule (utils/optionGuard.js): the owner can change
   // anyone's option, and so can the person who proposed it. Everyone else sees
@@ -135,12 +162,15 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
         <EditOptionForm option={option} onDone={() => setEditing(false)} />
       ) : (
         <>
-          {/* Title row: primary identity, with the Leading tag kept out of the
-              action row. */}
+          {/* Title row: primary identity + who proposed it, with the Leading
+              tag pinned to the far right, out of the wrap flow. */}
           <div className="flex items-start gap-2">
-            <h3 className="min-w-0 flex-1 font-heading text-base font-semibold leading-snug text-text-primary">
-              {title}
-            </h3>
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3.5 gap-y-1.5">
+              <h3 className="min-w-0 font-heading text-base font-semibold leading-snug text-text-primary">
+                {title}
+              </h3>
+              <ProposerTag name={proposerName} />
+            </div>
             <AnimatePresence initial={false} mode="popLayout">
               {isTopLiked && <LeadingTag key="leading" />}
             </AnimatePresence>
