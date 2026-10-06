@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Settings, Loader2, Check } from 'lucide-react';
+import { Loader2, Check } from 'lucide-react';
 import Select from '../../components/Select';
+import ErrorBanner from '../../components/ErrorBanner';
 import { updateBoard } from '../../services/board';
 import { setBoard } from '../../store/boardSlice';
 
@@ -12,6 +13,11 @@ const BOARD_TYPES = [
   { value: 'Event', label: 'Event', icon: null },
   { value: 'Custom', label: 'Custom', icon: null },
 ];
+
+// Same field styling as the propose-option form: border-defined inputs on the
+// card surface, accent focus, shared padding rhythm.
+const inputClasses =
+  'w-full rounded-btn border border-border bg-surface px-3.5 py-2.5 font-sans text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent transition-colors duration-200';
 
 const BoardSettingsForm = () => {
   const dispatch = useDispatch();
@@ -53,14 +59,9 @@ const BoardSettingsForm = () => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="rounded-card border border-border bg-surface p-5">
-      <div className="mb-4 flex items-center gap-2">
-        <Settings className="h-4 w-4 text-text-muted" />
-        <h3 className="font-heading text-sm font-semibold text-text-primary">Board settings</h3>
-      </div>
-
+    <form onSubmit={handleSubmit}>
       <div>
-        <label htmlFor="settings-name" className="mb-1.5 block font-sans text-xs font-medium text-text-muted">
+        <label htmlFor="settings-name" className="mb-1.5 block font-sans text-sm font-medium text-text-muted">
           Board name
         </label>
         <input
@@ -68,12 +69,12 @@ const BoardSettingsForm = () => {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-btn border border-border bg-surface-2 px-3 py-2 font-sans text-sm text-text-primary focus:outline-none focus:border-accent transition-colors duration-200"
+          className={inputClasses}
         />
       </div>
 
-      <div className="mt-3">
-        <label className="mb-1.5 block font-sans text-xs font-medium text-text-muted">Type</label>
+      <div className="mt-4">
+        <label className="mb-1.5 block font-sans text-sm font-medium text-text-muted">Type</label>
         <Select
           name="settings-type"
           value={type}
@@ -83,10 +84,10 @@ const BoardSettingsForm = () => {
         />
       </div>
 
-      <div className="mt-4 flex items-center justify-between">
+      <div className="mt-4 flex items-center justify-between gap-4 rounded-btn border border-border bg-surface-2/50 px-3.5 py-3">
         <div>
           <p className="font-sans text-sm font-medium text-text-primary">Options: owner only</p>
-          <p className="font-sans text-xs text-text-muted">Only the owner can propose options</p>
+          <p className="mt-0.5 font-sans text-xs text-text-muted">Only the owner can propose options</p>
         </div>
         <button
           type="button"
@@ -105,14 +106,12 @@ const BoardSettingsForm = () => {
         </button>
       </div>
 
-      {error && (
-        <p className="mt-3 rounded-btn bg-error/10 px-3 py-2 font-sans text-sm text-error">{error}</p>
-      )}
+      <ErrorBanner message={error} onDismiss={() => setError(null)} />
 
       <button
         type="submit"
         disabled={submitting}
-        className="mt-4 flex w-full items-center justify-center gap-2 rounded-btn bg-accent px-4 py-2 font-sans text-sm font-semibold text-background transition-all duration-200 hover:brightness-110 disabled:opacity-60"
+        className="mt-5 flex w-full items-center justify-center gap-2 rounded-btn bg-accent px-4 py-2.5 font-sans text-sm font-semibold text-background transition-all duration-200 hover:brightness-110 disabled:opacity-60"
       >
         {submitting ? (
           <Loader2 className="h-4 w-4 animate-spin" />
