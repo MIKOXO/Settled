@@ -23,37 +23,6 @@ const LeadingTag = () => (
   </motion.span>
 );
 
-// Score is what ranks the list, but the raw like/dislike buttons don't show
-// it — without the net number a card's position reads as arbitrary, and a
-// live re-rank looks like the list shuffling itself for no reason.
-const ScoreChip = ({ score }) => {
-  const reduceMotion = useReducedMotion();
-  const label = score > 0 ? `+${score}` : score < 0 ? `−${Math.abs(score)}` : '0';
-
-  return (
-    <span
-      title="Score = likes − dislikes"
-      aria-label={`Score ${score}`}
-      className={`flex items-center rounded-btn bg-surface-2 px-2 py-1.5 font-mono text-xs font-medium ${
-        score === 0 ? 'text-text-muted' : 'text-text-primary'
-      }`}
-    >
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span
-          key={label}
-          initial={reduceMotion ? false : { y: 6, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={reduceMotion ? false : { y: -6, opacity: 0 }}
-          transition={{ duration: 0.15, ease: 'easeOut' }}
-          className="inline-block"
-        >
-          {label}
-        </motion.span>
-      </AnimatePresence>
-    </span>
-  );
-};
-
 // Who proposed it, as a tag rather than a line of text: initials avatar in
 // the brand coral + the display name, quiet enough to sit next to the title
 // without competing with the Leading tag.
@@ -80,7 +49,6 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
     photoUrl,
     commentCount,
     location,
-    score,
   } = option;
   const dispatch = useDispatch();
   const session = useSelector((state) => state.session);
@@ -229,21 +197,24 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
             </div>
           )}
 
-          {/* Single action row: score, vote, discuss, and — for the option's
-              creator and the owner — an overflow menu holding edit and delete.
-              Wraps because the delete confirm is wider than the ⋯ trigger it
+          {/* Single action row: vote, discuss, and — for the option's creator
+              and the owner — an overflow menu holding edit and delete. Wraps
+              because the delete confirm is wider than the ⋯ trigger it
               replaces, and a narrow phone shouldn't push it off the row. */}
           <div className="mt-3.5 flex flex-wrap items-center gap-2">
-            <ScoreChip score={score} />
             <VoteButtons option={option} />
 
             <button
               type="button"
               onClick={() => setThreadOpen((wasOpen) => !wasOpen)}
               aria-expanded={threadOpen}
-              className="flex items-center gap-1.5 rounded-btn px-2 py-1.5 font-sans text-sm text-text-muted transition-colors duration-200 hover:text-text-primary"
+              className={`flex items-center gap-1.5 rounded-btn px-2.5 py-1.5 font-sans transition-colors duration-200 ${
+                threadOpen
+                  ? 'bg-accent/15 text-accent ring-1 ring-inset ring-accent/40'
+                  : 'bg-surface-2/60 text-text-muted hover:bg-surface-2 hover:text-text-primary'
+              }`}
             >
-              <MessageSquare className="h-4 w-4" />
+              <MessageSquare className="h-4 w-4" fill={threadOpen ? 'currentColor' : 'none'} />
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span
                   key={commentCount}

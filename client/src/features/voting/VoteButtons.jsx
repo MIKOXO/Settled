@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useEffect, useRef, useState } from 'react';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ThumbsDown, ThumbsUp } from 'lucide-react';
 import { castVote, removeVote } from '../../services/votes';
@@ -23,7 +23,6 @@ const VoteButton = ({
   count,
   active,
   errored,
-  disabled,
   locked,
   onClick,
 }) => {
@@ -31,33 +30,42 @@ const VoteButton = ({
   const reduceMotion = useReducedMotion();
 
   // A decided board still shows the tally — including your own past reaction —
-  // it just can't be changed. `locked` and `disabled` are distinct states:
-  // `disabled` is a request in flight, `locked` is the board being final.
+  // it just can't be changed. In-flight requests don't disable the buttons:
+  // clicks during flight queue as intent (see VoteButtons).
   const title = locked
     ? 'Decision locked — voting is closed'
     : errored
       ? "Couldn't update — try again"
       : `${count} ${value}s`;
 
+  // Filled chips on the card surface. Your like lights coral; your dislike
+  // answers in neutral bright — a downvote is a vote, not an accent action.
+  // Both fill their icon so "yours" is readable at a glance.
+  const stateClasses = errored
+    ? 'bg-error/10 text-error ring-1 ring-inset ring-error/40'
+    : active
+      ? value === 'like'
+        ? 'bg-accent/15 text-accent ring-1 ring-inset ring-accent/40'
+        : 'bg-text-primary/10 text-text-primary ring-1 ring-inset ring-text-muted/40'
+      : 'bg-surface-2/60 text-text-muted hover:bg-surface-2 hover:text-text-primary';
+
   return (
     <motion.button
       type="button"
       onClick={() => onClick(value)}
-      disabled={disabled || locked}
+      disabled={locked}
       aria-pressed={active}
       aria-label={`${value} (${count})`}
       title={title}
+      initial={false}
+      animate={active && !reduceMotion ? { scale: [1, 1.18, 1] } : { scale: 1 }}
       whileTap={reduceMotion || locked ? undefined : { scale: 0.92 }}
       transition={{ type: 'spring', stiffness: 500, damping: 25 }}
-      className={`flex items-center gap-1.5 rounded-btn border px-2.5 py-1.5 transition-colors duration-150 ${
-        errored
-          ? 'border-error/70 text-error'
-          : active
-            ? 'border-accent bg-accent/10 text-accent'
-            : 'border-border text-text-muted hover:border-accent/50 hover:text-text-primary'
-      } ${locked ? 'cursor-not-allowed opacity-50' : ''} ${disabled ? 'cursor-wait opacity-60' : ''}`}
+      className={`flex items-center gap-1.5 rounded-btn px-2.5 py-1.5 transition-colors duration-200 ${stateClasses} ${
+        locked ? 'cursor-not-allowed opacity-50' : ''
+      }`}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-4 w-4" fill={active ? 'currentColor' : 'none'} />
       {/* The tally is the board's liveliest number — a vote landing from
           another client should read as a change, not a silent text swap. */}
       <AnimatePresence mode="popLayout" initial={false}>
@@ -79,8 +87,18 @@ const VoteButton = ({
 const VoteButtons = ({ option }) => {
   const dispatch = useDispatch();
   const decided = useSelector((state) => state.board.board?.status === 'decided');
-  const [pending, setPending] = useState(false);
   const [errorValue, setErrorValue] = useState(null);
+
+  // The pending guard used to *swallow* clicks made while a request was in
+  // flight — on a slow connection that reads as a dead button. Now a click
+  // during flight queues as the latest intent (one deep: rapid taps collapse
+  // to the last thing the user meant) and fires the moment the in-flight
+  // request settles. The queued execution must read state fresher than any
+  // render closure (re-renders may not have flushed yet), so it asks the
+  // store directly.
+  const store = useStore();
+  const pendingRef = useRef(false);
+  const queuedValueRef = useRef(null);
 
   useEffect(() => {
     if (!errorValue) return undefined;
@@ -88,35 +106,36 @@ const VoteButtons = ({ option }) => {
     return () => window.clearTimeout(timer);
   }, [errorValue]);
 
-  const handleClick = async (value) => {
-    if (pending || decided) return;
+  const execute = async (value) => {
+    pendingRef.current = true;
+    setErrorValue(null);
 
-    const nextValue = option.vote === value ? null : value;
+    const current =
+      store.getState().board.options.find((o) => o.id === option.id) ?? option;
+    const nextValue = current.vote === value ? null : value;
     const snapshot = {
-      likesCount: option.likesCount,
-      dislikesCount: option.dislikesCount,
-      score: option.score,
-      vote: option.vote,
+      likesCount: current.likesCount,
+      dislikesCount: current.dislikesCount,
+      score: current.score,
+      vote: current.vote,
     };
 
     dispatch(
       applyVoteUpdate({
-        optionId: option.id,
+        optionId: current.id,
         vote: nextValue,
-        ...nextCounts(option, nextValue),
+        ...nextCounts(current, nextValue),
       }),
     );
-    setPending(true);
-    setErrorValue(null);
 
     try {
       const result = nextValue
-        ? await castVote(option.id, nextValue)
-        : await removeVote(option.id);
+        ? await castVote(current.id, nextValue)
+        : await removeVote(current.id);
 
       dispatch(
         applyVoteUpdate({
-          optionId: option.id,
+          optionId: current.id,
           likesCount: result.option.likesCount,
           dislikesCount: result.option.dislikesCount,
           score: result.option.score,
@@ -124,11 +143,23 @@ const VoteButtons = ({ option }) => {
         }),
       );
     } catch {
-      dispatch(applyVoteUpdate({ optionId: option.id, ...snapshot }));
+      dispatch(applyVoteUpdate({ optionId: current.id, ...snapshot }));
       setErrorValue(value);
     } finally {
-      setPending(false);
+      pendingRef.current = false;
+      const queued = queuedValueRef.current;
+      queuedValueRef.current = null;
+      if (queued !== null) execute(queued);
     }
+  };
+
+  const handleClick = (value) => {
+    if (decided) return;
+    if (pendingRef.current) {
+      queuedValueRef.current = value;
+      return;
+    }
+    execute(value);
   };
 
   return (
@@ -138,7 +169,6 @@ const VoteButtons = ({ option }) => {
         count={option.likesCount}
         active={option.vote === 'like'}
         errored={errorValue === 'like'}
-        disabled={pending}
         locked={decided}
         onClick={handleClick}
       />
@@ -147,7 +177,6 @@ const VoteButtons = ({ option }) => {
         count={option.dislikesCount}
         active={option.vote === 'dislike'}
         errored={errorValue === 'dislike'}
-        disabled={pending}
         locked={decided}
         onClick={handleClick}
       />
