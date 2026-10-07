@@ -9,7 +9,7 @@
 | State management   | Redux Toolkit                        | Global client state (board, session, participants)                |
 | Icons              | Lucide React                         | Icon set                                                          |
 | Animation          | Framer Motion                        | Vote/card animations — core interaction, not decoration           |
-| Maps               | React Leaflet + OpenStreetMap tiles  | Interactive map rendering                                         |
+| Maps               | MapLibre GL + OpenFreeMap    | Interactive map rendering                                         |
 | Real-time (client) | Socket.io-client                     | Live board updates                                                |
 | Backend framework  | Node.js + Express                    | REST API, 3-tier: Routes → Controllers → Services                 |
 | Real-time (server) | Socket.io                            | Room-scoped events, one room per `board_id`                       |
@@ -18,6 +18,7 @@
 | Auth               | JWT                                  | Board-scoped session tokens, no full account system               |
 | Email              | Brevo                                | Magic-link recovery                                               |
 | Geocoding          | Nominatim (OpenStreetMap)            | Place search / reverse geocoding                                  |
+| Place enrichment   | Wikipedia REST summary API           | Article extract/thumbnail for places with OSM wikidata/wikipedia tags |
 | Deployment         | Vercel (frontend) / Render (backend) | Backend needs a persistent process for Socket.io — not serverless |
 
 ## System Boundaries
