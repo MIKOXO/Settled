@@ -2,6 +2,7 @@ import axios from 'axios';
 import { env } from '../config/env.js';
 import { createAppError } from '../utils/AppError.js';
 import { createTtlCache } from '../utils/ttlCache.js';
+import { fetchWikipediaSummary } from '../utils/wikipedia.js';
 
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 
@@ -56,6 +57,8 @@ const emptyPlace = (lat, lng) => ({
   lng,
   address: null,
   details: {},
+  wikipedia: null,
+  wikiTags: { wikipediaTag: null, wikidataId: null },
 });
 
 /** Trims a Nominatim jsonv2 object down to the fields the client renders. */
@@ -70,6 +73,13 @@ const toPlace = (item, lat, lng) => ({
   lng: Number(item.lon ?? lng),
   address: item.address ?? null,
   details: pickDetails(item.extratags),
+  // Raw OSM wikipedia/wikidata pointers, plus the resolved Wikipedia summary
+  // (null when no article exists or the lookup fails).
+  wikipedia: null,
+  wikiTags: {
+    wikipediaTag: item.extratags?.wikipedia ?? null,
+    wikidataId: item.extratags?.wikidata ?? null,
+  },
 });
 
 const request = (path, params) =>
@@ -78,6 +88,16 @@ const request = (path, params) =>
     headers: { 'User-Agent': env.NOMINATIM_USER_AGENT },
     timeout: 5000,
   });
+
+/** Attaches the Wikipedia summary for the place's wikidata/wikipedia pointer. */
+const withSummary = async (place) => {
+  const { wikiTags = { wikipediaTag: null, wikidataId: null }, ...rest } = place;
+  if (!wikiTags.wikipediaTag && !wikiTags.wikidataId) {
+    return { ...rest, wikipedia: null };
+  }
+  const summary = await fetchWikipediaSummary(wikiTags);
+  return { ...rest, wikipedia: summary };
+};
 
 export const searchPlaces = async (query) => {
   requireNominatim('Place search is not configured');
@@ -90,9 +110,11 @@ export const searchPlaces = async (query) => {
     extratags: 1,
   });
 
-  return response.data.map((item) =>
+  const places = response.data.map((item) =>
     toPlace(item, parseFloat(item.lat), parseFloat(item.lon)),
   );
+
+  return Promise.all(places.map(withSummary));
 };
 
 export const reversePlace = async (lat, lng) => {
@@ -116,9 +138,10 @@ export const reversePlace = async (lat, lng) => {
   });
 
   // jsonv2 /reverse resolves to a single object; /search to an array.
-  const place = response.data
+  const base = response.data
     ? toPlace(response.data, lat, lng)
     : emptyPlace(lat, lng);
+  const place = await withSummary(base);
   reverseCache.set(key, place);
 
   return { place, cacheStatus: 'miss' };
