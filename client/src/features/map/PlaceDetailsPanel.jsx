@@ -105,10 +105,42 @@ const PlaceDetailsPanel = ({
         <p className="mt-3 font-sans text-xs text-error">{error}</p>
       )}
 
-      {!isLoading && rows.length === 0 && !error && (
+      {!isLoading && rows.length === 0 && !error && !place?.wikipedia && (
         <p className="mt-3 font-sans text-xs text-text-muted">
           No extra details on OpenStreetMap for this spot.
         </p>
+      )}
+
+      {!isLoading && place?.wikipedia && (
+        <div className="mt-3 overflow-hidden rounded-card border border-border bg-surface-2/50">
+          {place.wikipedia.thumbnail && (
+            <img
+              src={place.wikipedia.thumbnail}
+              alt=""
+              className="h-32 w-full object-cover"
+            />
+          )}
+          <div className="p-3">
+            <p className="font-sans text-sm leading-relaxed text-text-primary">
+              {place.wikipedia.extract}
+            </p>
+            <p className="mt-2 font-sans text-[11px] text-text-muted/70">
+              via{' '}
+              {place.wikipedia.url ? (
+                <a
+                  href={place.wikipedia.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline-offset-2 transition-colors duration-150 hover:text-accent hover:underline"
+                >
+                  Wikipedia
+                </a>
+              ) : (
+                'Wikipedia'
+              )}
+            </p>
+          </div>
+        </div>
       )}
 
       {rows.length > 0 && (
