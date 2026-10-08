@@ -348,7 +348,7 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false, focus = null })
             { enableHighAccuracy: true, timeout: 5000 },
           );
         }}
-        className="absolute top-2 right-2 z-[400] flex h-8 w-8 items-center justify-center rounded-btn border border-border bg-surface/90 text-text-muted backdrop-blur-sm transition-colors duration-150 hover:text-accent"
+        className="absolute right-2 top-28 z-[400] flex h-8 w-8 items-center justify-center rounded-btn border border-border bg-surface/90 text-text-muted backdrop-blur-sm transition-colors duration-150 hover:text-accent"
         title="Go to my location"
       >
         <Navigation className="h-4 w-4" />
