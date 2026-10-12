@@ -6,6 +6,11 @@ import { uploadToB2, getSignedPhotoUrl } from '../utils/b2.js';
 import { createAppError } from '../utils/AppError.js';
 import { assertBoardOpen } from '../utils/boardGuard.js';
 import { findLeadingOptionIds } from './voteService.js';
+import {
+  emitOptionCreated,
+  emitOptionUpdated,
+  emitOptionDeleted,
+} from '../sockets/optionEmitter.js';
 
 export const createOption = async (participantId, board, input) => {
   assertBoardOpen(board);
@@ -31,6 +36,10 @@ export const createOption = async (participantId, board, input) => {
     option.locationId = location._id;
     await option.save();
   }
+
+  // Announced only after the write lands, so the socket reports confirmed state
+  // rather than intent (invariant 5).
+  emitOptionCreated(option, await findLeadingOptionIds(board._id));
 
   return option;
 };
@@ -92,6 +101,8 @@ export const attachPhoto = async (optionId, buffer, contentType, extension) => {
   option.photoKey = key;
   await option.save();
 
+  emitOptionUpdated(option, await findLeadingOptionIds(option.boardId));
+
   return option;
 };
 
@@ -141,6 +152,8 @@ export const updateOption = async (optionId, patch) => {
 
   await option.save();
 
+  emitOptionUpdated(option, await findLeadingOptionIds(option.boardId));
+
   return option;
 };
 
@@ -166,6 +179,8 @@ export const deleteOption = async (optionId) => {
   ]);
 
   await Option.deleteOne({ _id: option._id });
+
+  emitOptionDeleted(option);
 
   return option;
 };

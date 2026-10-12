@@ -3,7 +3,7 @@ import { Board } from '../models/Board.js';
 import { Participant } from '../models/Participant.js';
 import { env } from '../config/env.js';
 import { createAppError } from '../utils/AppError.js';
-import { emitBoardDecided, emitParticipantRemoved } from '../sockets/boardEmitter.js';
+import { emitBoardDecided, emitParticipantRemoved, emitBoardUpdated } from '../sockets/boardEmitter.js';
 
 export const createBoard = async (input) => {
   const session = await mongoose.startSession();
@@ -80,6 +80,17 @@ export const updateBoard = async (boardId, patch) => {
   if (!board) {
     throw createAppError('Board not found', 404);
   }
+
+  // Announced only after the write lands, and only for the keys that were
+  // actually persisted — the socket announces confirmed state, it is never
+  // the source of it (invariant 5). Clients merge this partial into their own
+  // board, so an unrelated field can never be clobbered by the broadcast.
+  const changed = {};
+  for (const key of Object.keys(updates)) {
+    changed[key] = board[key] ?? null;
+  }
+  emitBoardUpdated(boardId, changed);
+
   return board;
 };
 
