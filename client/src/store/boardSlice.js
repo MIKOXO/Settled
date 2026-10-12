@@ -24,7 +24,47 @@ const boardSlice = createSlice({
       state.options = action.payload;
     },
     addOption: (state, action) => {
+      // The posting client applies the create response locally and then
+      // receives its own `option:created` echo back — whichever lands second
+      // must not produce a second copy of the same option.
+      if (state.options.some((o) => o.id === action.payload.id)) return;
       state.options.unshift(action.payload);
+    },
+    // Create and update share one upsert: `option:created` and `option:updated`
+    // carry the same full-option shape, and handling them differently would let
+    // the two paths drift apart.
+    applyOptionUpsert: (state, action) => {
+      const incoming = action.payload;
+      const idx = state.options.findIndex((o) => o.id === incoming.id);
+
+      if (idx >= 0) {
+        // `vote` is the one per-participant field, and the server always sends
+        // it null — merging it would wipe the reaction this client holds.
+        // Everything else in the payload is authoritative.
+        const rest = { ...incoming };
+        delete rest.vote;
+        Object.assign(state.options[idx], rest);
+      } else {
+        state.options.unshift({ ...incoming, vote: incoming.vote ?? null });
+      }
+
+      // An option's place is also a map pin. Syncing it here keeps a remotely
+      // created option from showing a location chip for a pin that isn't on
+      // the map, and drops the pin when an edit clears the location.
+      const pinIdx = state.optionLocations.findIndex((l) => l.optionId === incoming.id);
+
+      if (incoming.location) {
+        const pin = {
+          optionId: incoming.id,
+          lat: incoming.location.lat,
+          lng: incoming.location.lng,
+          placeName: incoming.location.placeName ?? null,
+        };
+        if (pinIdx >= 0) state.optionLocations[pinIdx] = pin;
+        else state.optionLocations.push(pin);
+      } else if (pinIdx >= 0) {
+        state.optionLocations.splice(pinIdx, 1);
+      }
     },
     updateOptionDetails: (state, action) => {
       const { optionId, changes } = action.payload;
@@ -189,6 +229,7 @@ export const {
   setBoard,
   setOptions,
   addOption,
+  applyOptionUpsert,
   updateOptionDetails,
   removeOption,
   applyVoteUpdate,
