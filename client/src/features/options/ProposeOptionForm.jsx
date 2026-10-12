@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import { motion, useReducedMotion } from 'framer-motion';
 import { Loader2, Lock, Plus, MapPin, X } from 'lucide-react';
@@ -7,19 +7,39 @@ import { createOption, uploadOptionPhoto, fetchOptions } from '../../services/op
 import { addOption, setOptions } from '../../store/boardSlice';
 import ErrorBanner from '../../components/ErrorBanner';
 import useFormErrors from '../../hooks/useFormErrors';
+import useCanProposeOption from '../../hooks/useCanProposeOption';
 import PlaceSearch from '../map/PlaceSearch';
 import BoardMap from '../map/BoardMap';
 
 const inputClasses =
   'w-full rounded-btn border border-border bg-surface px-3.5 py-2.5 font-sans text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent transition-colors duration-200';
 
+// The trigger stays on screen but inert whenever adding isn't available:
+// removing it entirely would leave the panel looking like options can still be
+// added, while a live button invites a submit that the server 403s. Same shape
+// as the collapsed trigger, muted out, with the reason stated underneath.
+const LockedTrigger = ({ reason }) => (
+  <div className="mb-5">
+    <button
+      type="button"
+      disabled
+      title={reason}
+      className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-btn border border-dashed border-border px-3.5 py-2 font-sans text-sm text-text-muted/40"
+    >
+      <Plus className="h-4 w-4" />
+      Add an option
+    </button>
+    <p className="mt-2 flex items-center gap-1.5 font-sans text-xs text-text-muted/70">
+      <Lock className="h-3.5 w-3.5 shrink-0" />
+      {reason}
+    </p>
+  </div>
+);
+
 const ProposeOptionForm = ({ prefill }) => {
   const dispatch = useDispatch();
   const { boardId } = useParams();
-  const session = useSelector((state) => state.session);
-  const optionsOwnerOnly = useSelector((state) => state.board.optionsOwnerOnly ?? false);
-  const decided = useSelector((state) => state.board.board?.status === 'decided');
-  const canCreate = !optionsOwnerOnly || session?.role === 'owner';
+  const { canPropose, blockedReason } = useCanProposeOption();
   const reduceMotion = useReducedMotion();
 
   const [open, setOpen] = useState(false);
@@ -54,26 +74,11 @@ const ProposeOptionForm = ({ prefill }) => {
     setOpen(true);
   }
 
-  // Both closed states share one shape: a quiet centered line, no interactive
-// affordance. Hiding the trigger outright would leave the panel looking like
-// options can still be added; a dead "Add an option" button would invite a
-// submit that 403s.
-  if (!canCreate) {
-    return (
-      <p className="mb-5 flex items-center gap-2 font-sans text-sm text-text-muted/70">
-        <Lock className="h-4 w-4 shrink-0" />
-        Only the board owner can add options.
-      </p>
-    );
-  }
-
-  if (decided) {
-    return (
-      <p className="mb-5 flex items-center gap-2 font-sans text-sm text-text-muted/70">
-        <Lock className="h-4 w-4 shrink-0" />
-        This board&apos;s decision is locked — no new options.
-      </p>
-    );
+  // Proposing is closed either way when the board blocks it: the trigger stays
+  // on screen but inert, so the panel never looks like options can still be
+  // added and never offers a form that 403s on submit.
+  if (!canPropose) {
+    return <LockedTrigger reason={blockedReason} />;
   }
 
   const handlePhotoChange = (e) => {

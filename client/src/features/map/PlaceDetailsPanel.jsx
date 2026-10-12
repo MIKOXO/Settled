@@ -1,4 +1,5 @@
-import { Clock, ExternalLink, Info, Loader2, MapPin, Phone, Plus, Share2, UtensilsCrossed, Accessibility, X } from 'lucide-react';
+import { Clock, ExternalLink, Info, Loader2, Lock, MapPin, Phone, Plus, Share2, UtensilsCrossed, Accessibility, X } from 'lucide-react';
+import useCanProposeOption from '../../hooks/useCanProposeOption';
 import {
   buildPlaceDetailRows,
   formatCoordinates,
@@ -48,6 +49,8 @@ const PlaceDetailsPanel = ({
   onPropose,
   onShareLocation,
 }) => {
+  const { canPropose, blockedReason } = useCanProposeOption();
+
   if (!place && status !== 'loading') return null;
 
   const isLoading = status === 'loading';
@@ -153,10 +156,21 @@ const PlaceDetailsPanel = ({
 
       {canAct && (
         <div className="mt-4 flex flex-col gap-2">
+          {/* A member on an owner-only board sees the action in place but
+              disabled — hiding it would make the panel look like proposing
+              isn't part of the flow, and the handoff would dead-end on a
+              locked options tab. Same reason as the composer, so it comes
+              from the same shared gate. */}
           <button
             type="button"
+            disabled={!canPropose}
             onClick={() => onPropose(place)}
-            className="flex items-center justify-center gap-2 rounded-btn bg-accent px-3 py-2 font-sans text-sm font-semibold text-background transition-all duration-200 hover:brightness-110"
+            title={blockedReason ?? undefined}
+            className={`flex items-center justify-center gap-2 rounded-btn px-3 py-2 font-sans text-sm font-semibold transition-all duration-200 ${
+              canPropose
+                ? 'bg-accent text-background hover:brightness-110'
+                : 'cursor-not-allowed bg-surface-2 text-text-muted/50'
+            }`}
           >
             <Plus className="h-4 w-4" />
             Propose as option
@@ -169,6 +183,12 @@ const PlaceDetailsPanel = ({
             <Share2 className="h-4 w-4" />
             Share as my location
           </button>
+          {!canPropose && (
+            <p className="flex items-start gap-1.5 font-sans text-xs text-text-muted/70">
+              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {blockedReason}
+            </p>
+          )}
         </div>
       )}
 
