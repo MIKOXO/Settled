@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion, useReducedMotion } from 'framer-motion';
-import { MapPin, Trash2, Loader2, X } from 'lucide-react';
+import { MapPin, Trash2, Loader2, X, LocateFixed } from 'lucide-react';
 import { setMyLocation, removeMyLocation } from '../../services/location';
 import { upsertParticipantLocation, removeParticipantLocation } from '../../store/boardSlice';
+import {
+  formatAccuracy,
+  getAccuratePosition,
+  isWeakAccuracy,
+} from '../../utils/geolocation';
 import PlaceSearch from './PlaceSearch';
 import BoardMap from './BoardMap';
 
@@ -18,6 +23,7 @@ const LocationOptIn = ({ boardId, prefill }) => {
   const [pickMode, setPickMode] = useState(null);
   const [pendingShare, setPendingShare] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [error, setError] = useState(null);
 
   // A place handed over from the map's details panel. It only fills the label —
@@ -36,15 +42,26 @@ const LocationOptIn = ({ boardId, prefill }) => {
 
   // The location schema's `label` is .optional(), not nullable — omit it
   // rather than send null, same rule as the option form's placeName.
+  //
+  // A device fix has no place name, so it gets "Current location" instead —
+  // otherwise every GPS share shows bare coordinates on the other clients'
+  // pins while a hand-picked spot shows its name.
+  const shareLabel = (share) => {
+    if (share.placeName) return share.placeName;
+    if (share.accuracy != null) return 'Current location';
+    return null;
+  };
+
   const confirmShare = async () => {
     if (!pendingShare) return;
     setSubmitting(true);
     setError(null);
     try {
+      const label = shareLabel(pendingShare);
       const res = await setMyLocation(boardId, {
         lat: pendingShare.lat,
         lng: pendingShare.lng,
-        ...(pendingShare.placeName ? { label: pendingShare.placeName } : {}),
+        ...(label ? { label } : {}),
       });
       dispatch(upsertParticipantLocation(res));
       setPendingShare(null);
@@ -52,6 +69,24 @@ const LocationOptIn = ({ boardId, prefill }) => {
       setError(err.message ?? 'Could not save location');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  // Reading the device position is not sharing it. The fix lands in
+  // `pendingShare` and still has to be confirmed, so the disclosure below is
+  // read before an exact position ever leaves the device — the same gate the
+  // search and map-pick paths go through.
+  const handleUseMyLocation = async () => {
+    setLocating(true);
+    setError(null);
+    try {
+      const position = await getAccuratePosition();
+      setPickMode(null);
+      setPendingShare(position);
+    } catch (err) {
+      setError(err.message ?? 'Could not get your location');
+    } finally {
+      setLocating(false);
     }
   };
 
@@ -114,6 +149,20 @@ const LocationOptIn = ({ boardId, prefill }) => {
               {pendingShare.placeName ??
                 `${pendingShare.lat.toFixed(4)}, ${pendingShare.lng.toFixed(4)}`}
             </p>
+            {formatAccuracy(pendingShare.accuracy) && (
+              <p
+                className={`mt-1 font-sans text-xs ${
+                  isWeakAccuracy(pendingShare.accuracy)
+                    ? 'text-accent-secondary'
+                    : 'text-text-muted'
+                }`}
+              >
+                From your device, accurate to{' '}
+                {formatAccuracy(pendingShare.accuracy)}
+                {isWeakAccuracy(pendingShare.accuracy) &&
+                  ' — that is a rough fix, so picking on the map may be more accurate'}
+              </p>
+            )}
           </div>
         </div>
 
@@ -152,11 +201,11 @@ const LocationOptIn = ({ boardId, prefill }) => {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-2.5">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-accent-secondary" />
-            <div>
+            <div className="min-w-0">
               <p className="font-sans text-sm font-medium text-text-primary">
                 Your location is shared
               </p>
-              <p className="mt-0.5 font-sans text-xs text-text-muted">
+              <p className="mt-0.5 truncate font-sans text-xs text-text-muted">
                 {myLocation.label ?? `${myLocation.lat.toFixed(4)}, ${myLocation.lng.toFixed(4)}`}
               </p>
             </div>
@@ -175,6 +224,23 @@ const LocationOptIn = ({ boardId, prefill }) => {
             Remove
           </button>
         </div>
+
+        {/* A shared point is a snapshot, so anyone who has moved needs a way to
+            re-fix it — otherwise the pin they leave behind silently goes stale. */}
+        <button
+          type="button"
+          onClick={handleUseMyLocation}
+          disabled={locating}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-btn border border-border px-3 py-2 font-sans text-sm text-text-primary transition-colors duration-200 hover:border-accent disabled:opacity-50"
+        >
+          {locating ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <LocateFixed className="h-4 w-4" />
+          )}
+          {locating ? 'Finding you...' : 'Update to my current location'}
+        </button>
+
         {error && (
           <p className="mt-2 font-sans text-xs text-error">{error}</p>
         )}
@@ -209,24 +275,44 @@ const LocationOptIn = ({ boardId, prefill }) => {
         className="mt-3"
       >
         {!pickMode && (
-          <div className="flex gap-2">
+          <>
+            {/* Primary action: the device knows where the user actually is, and
+                it's the only path that gets them an accurate fix without
+                guessing which pin on the map is them. */}
             <button
               type="button"
-              onClick={() => setPickMode('search')}
-              disabled={submitting}
-              className="flex flex-1 items-center justify-center gap-2 rounded-btn border border-border px-3 py-2 font-sans text-sm text-text-primary transition-colors duration-200 hover:border-accent disabled:opacity-50"
+              onClick={handleUseMyLocation}
+              disabled={locating}
+              className="flex w-full items-center justify-center gap-2 rounded-btn bg-accent px-3 py-2 font-sans text-sm font-semibold text-background transition-all duration-200 hover:brightness-110 disabled:opacity-50"
             >
-              Search for a place
+              {locating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <LocateFixed className="h-4 w-4" />
+              )}
+              {locating ? 'Finding you...' : 'Use my current location'}
             </button>
-            <button
-              type="button"
-              onClick={() => setPickMode('map')}
-              disabled={submitting}
-              className="flex flex-1 items-center justify-center gap-2 rounded-btn border border-border px-3 py-2 font-sans text-sm text-text-primary transition-colors duration-200 hover:border-accent disabled:opacity-50"
-            >
-              Pick on map
-            </button>
-          </div>
+
+            {/* Manual paths stay as the fallback when GPS is denied or weak. */}
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPickMode('search')}
+                disabled={submitting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-btn border border-border px-3 py-2 font-sans text-sm text-text-primary transition-colors duration-200 hover:border-accent disabled:opacity-50"
+              >
+                Search for a place
+              </button>
+              <button
+                type="button"
+                onClick={() => setPickMode('map')}
+                disabled={submitting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-btn border border-border px-3 py-2 font-sans text-sm text-text-primary transition-colors duration-200 hover:border-accent disabled:opacity-50"
+              >
+                Pick on map
+              </button>
+            </div>
+          </>
         )}
 
         {pickMode === 'search' && (

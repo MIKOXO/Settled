@@ -5,6 +5,7 @@ import { setWorkerUrl } from 'maplibre-gl';
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Map, Satellite, Navigation } from 'lucide-react';
+import { getAccuratePosition } from '../../utils/geolocation';
 
 // Bundle MapLibre's module worker explicitly so Vite serves it as an asset.
 // Without this, the map controls can render while the style/vector tiles fail.
@@ -44,12 +45,31 @@ const satelliteStyle = () => ({
   ],
 });
 
+// Root box for every custom marker.
+//
+// `position: absolute` is load-bearing, and it must be set explicitly rather
+// than inherited from MapLibre's `.maplibregl-marker` class. Setting it to
+// `relative` (which it was, carried over from the Leaflet divIcon days) drops
+// the marker out of absolute positioning and makes it an in-flow block that
+// stretches to the full width of the map canvas. The dot then renders at that
+// box's left edge while the label's `left:50%` resolves against the canvas
+// width instead of the dot — so the two ended up hundreds of pixels apart, with
+// the label drifting to wherever the map was centred.
+//
+// Absolute positioning also still establishes the containing block the
+// absolutely-positioned label resolves against, which is the only reason the
+// label can be centred on the dot at all.
+const markerRoot = () => {
+  const el = document.createElement('div');
+  el.style.position = 'absolute';
+  return el;
+};
+
 // Pin element: the point-of-interest dot is the anchor 'center' of the marker
 // box; the always-visible label hangs below it as an absolutely-positioned
 // sibling so it never shifts the anchor. Same look as the old Leaflet divIcons.
 const pinElement = (inner, label) => {
-  const el = document.createElement('div');
-  el.style.position = 'relative';
+  const el = markerRoot();
   el.innerHTML = `
     <div style="position:relative;width:${inner.size}px;height:${inner.size}px">
       ${inner.highlight ? '<div style="position:absolute;inset:-4px;border-radius:50%;border:2px solid var(--accent-primary);background:rgba(255,107,74,0.14);box-shadow:0 2px 10px rgba(0,0,0,.45)"></div>' : ''}
@@ -87,8 +107,7 @@ const participantPinElement = (name, highlighted) =>
   );
 
 const currentPositionElement = () => {
-  const el = document.createElement('div');
-  el.style.position = 'relative';
+  const el = markerRoot();
   el.innerHTML = `
     <div style="position:relative;width:20px;height:20px">
       <div style="position:absolute;inset:-8px;border-radius:50%;background:rgb(var(--text-primary-rgb) / 0.22);animation:currentPulse 2s ease-out infinite"></div>
@@ -154,13 +173,13 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false, focus = null })
     map.addControl(new maplibregl.NavigationControl(), 'top-right');
 
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => map.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 13, duration: 1200 }),
-        () => {},
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
-      );
-    }
+    // Opening on the user is a convenience, not a requirement — a denied or
+    // slow fix just leaves the camera where it was, so the rejection is
+    // deliberately swallowed here. Sharing a location is the flow that
+    // actually has to report a failure.
+    getAccuratePosition({ timeout: 8000, maximumAge: 60000 })
+      .then(({ lng, lat }) => map.flyTo({ center: [lng, lat], zoom: 13, duration: 1200 }))
+      .catch(() => {});
 
     const watchId = navigator.geolocation
       ? navigator.geolocation.watchPosition(
@@ -300,6 +319,11 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false, focus = null })
     <div className={`relative overflow-hidden rounded-card border border-border ${selectable ? 'cursor-crosshair' : ''}`}>
       <div ref={containerRef} className="h-96 w-full sm:h-[40rem]" />
 
+      {/* Legend wording matches the marker labels exactly. It used to read
+          "You" here, which collided with the mustard participant pin that
+          renders as "You" when you are the one who shared — so the only way to
+          tell your own shared pin from your live position was to already know
+          which dot was which. */}
       <div className="absolute bottom-2 left-2 z-[400] flex gap-3 rounded-btn bg-surface/90 px-3 py-2 backdrop-blur-sm">
         <span className="flex items-center gap-1.5 font-sans text-xs text-text-muted">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent" />
@@ -311,7 +335,7 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false, focus = null })
         </span>
         <span className="flex items-center gap-1.5 font-sans text-xs text-text-muted">
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-text-primary ring-1 ring-background" />
-          You
+          You are here
         </span>
       </div>
 
@@ -341,12 +365,12 @@ const BoardMap = ({ onMapClick, onSelectPin, selectable = false, focus = null })
       <button
         type="button"
         onClick={() => {
-          if (!navigator.geolocation || !mapRef.current) return;
-          navigator.geolocation.getCurrentPosition(
-            (pos) => mapRef.current.flyTo({ center: [pos.coords.longitude, pos.coords.latitude], zoom: 14, duration: 1000 }),
-            () => {},
-            { enableHighAccuracy: true, timeout: 5000 },
-          );
+          if (!mapRef.current) return;
+          getAccuratePosition({ timeout: 5000 })
+            .then(({ lng, lat }) =>
+              mapRef.current.flyTo({ center: [lng, lat], zoom: 14, duration: 1000 }),
+            )
+            .catch(() => {});
         }}
         className="absolute right-2 top-28 z-[400] flex h-8 w-8 items-center justify-center rounded-btn border border-border bg-surface/90 text-text-muted backdrop-blur-sm transition-colors duration-150 hover:text-accent"
         title="Go to my location"
