@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { Fragment, useEffect, useState } from 'react';
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   Check,
+  X,
   ThumbsUp,
   ThumbsDown,
   MapPin,
@@ -244,82 +245,203 @@ const MiniMap = ({ reduceMotion }) => (
 );
 
 /* -------------------------------------------------------------------------- */
-/* Demo 3: MiniDates - Visual Date Heatmap Grid Demo                          */
+/* Demo 3: MiniDates - Availability Heatmap Matrix Demo                         */
 /* -------------------------------------------------------------------------- */
-const MiniDates = () => {
-  const dates = [
-    { day: 'Thu', date: 'Oct 12', count: 2, percent: '35%', best: false },
-    { day: 'Fri', date: 'Oct 13', count: 6, percent: '80%', best: false },
-    { day: 'Sat', date: 'Oct 14', count: 8, percent: '100%', best: true },
-    { day: 'Sun', date: 'Oct 15', count: 4, percent: '55%', best: false },
-  ];
+/* One row per person, one column per date — the same shape the real Dates tab   */
+/* renders, so the landing illustration is a preview rather than a metaphor.     */
+const AVAILABILITY_DAYS = [
+  { id: 'thu', dow: 'Thu', date: 'Oct 12', full: 'Thursday, Oct 12' },
+  { id: 'fri', dow: 'Fri', date: 'Oct 13', full: 'Friday, Oct 13' },
+  { id: 'sat', dow: 'Sat', date: 'Oct 14', full: 'Saturday, Oct 14' },
+  { id: 'sun', dow: 'Sun', date: 'Oct 15', full: 'Sunday, Oct 15' },
+];
+
+const AVAILABILITY_PEOPLE = [
+  { id: 'alex', name: 'Alex', initials: 'AL', cells: { thu: 'free', fri: 'free', sat: 'free', sun: 'free' } },
+  { id: 'sarah', name: 'Sarah', initials: 'SR', cells: { thu: 'free', fri: 'busy', sat: 'free', sun: 'free' } },
+  { id: 'james', name: 'James', initials: 'JM', cells: { thu: null, fri: 'free', sat: 'free', sun: 'busy' } },
+  { id: 'dani', name: 'Dani', initials: 'DT', cells: { thu: 'busy', fri: 'busy', sat: 'free', sun: 'free' } },
+  { id: 'kai', name: 'Kai', initials: 'KW', cells: { thu: 'free', fri: null, sat: 'free', sun: 'busy' } },
+];
+
+// Counts and the winning day are derived from the matrix above, never hand-typed,
+// so the columns can never disagree with the cells they summarize.
+const AVAILABILITY_TOTAL = AVAILABILITY_PEOPLE.length;
+const AVAILABILITY_TALLY = AVAILABILITY_DAYS.map((day) => ({
+  ...day,
+  free: AVAILABILITY_PEOPLE.filter((person) => person.cells[day.id] === 'free').length,
+}));
+const AVAILABILITY_BEST = AVAILABILITY_TALLY.reduce((top, day) =>
+  day.free > top.free ? day : top
+);
+
+const AvailabilityCell = ({ status, isBest, delay, reduceMotion }) => {
+  // The winning column swaps its "free" tone for mustard — the same treatment the
+  // leading option gets, so the best date reads at a glance instead of by counting.
+  const tone =
+    status === 'free'
+      ? isBest
+        ? 'border-accent-secondary/40 bg-accent-secondary/20 text-accent-secondary'
+        : 'border-success/30 bg-success/15 text-success'
+      : status === 'busy'
+        ? 'border-error/30 bg-error/15 text-error'
+        : 'border-border bg-background text-text-muted/40';
 
   return (
-    <div className="w-full space-y-3">
-      {/* Date Header */}
-      <div className="flex items-center justify-between pb-2.5">
-        <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-accent" />
-          <span className="font-sans text-xs font-semibold uppercase tracking-wider text-text-muted">
-            Group Availability
-          </span>
-        </div>
-        <span className="font-mono text-xs font-semibold text-accent-secondary">
-          8 Participants
-        </span>
-      </div>
-
-      {/* Grid Columns */}
-      <div className="grid grid-cols-4 gap-2">
-        {dates.map((d) => (
-          <div
-            key={d.day}
-            className={`flex flex-col items-center gap-2 rounded-btn p-2.5 transition-colors ${
-              d.best
-                ? 'bg-surface-2 shadow-sm'
-                : 'bg-surface'
-            }`}
-          >
-            <div className="text-center">
-              <span className="block font-sans text-xs font-bold text-text-primary">
-                {d.day}
-              </span>
-              <span className="block font-sans text-[10px] text-text-muted">
-                {d.date}
-              </span>
-            </div>
-
-            {/* Heatmap Bar container */}
-            <div className="relative flex h-16 w-full items-end rounded-btn bg-background p-1 overflow-hidden">
-              <div
-                className={`w-full rounded-btn transition-all ${
-                  d.best ? 'bg-accent-secondary' : 'bg-accent/40'
-                }`}
-                style={{ height: d.percent }}
-              />
-            </div>
-
-            {/* Count & status badge */}
-            <div className="text-center">
-              <span className="font-mono text-xs font-bold text-text-primary">
-                {d.count}/8
-              </span>
-              {d.best ? (
-                <span className="mt-0.5 block rounded-btn bg-accent-secondary/20 px-1.5 py-0.5 font-sans text-[9px] font-bold uppercase tracking-wider text-accent-secondary">
-                  Best Day
-                </span>
-              ) : (
-                <span className="mt-0.5 block font-sans text-[9px] text-text-muted">
-                  Free
-                </span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+    <motion.span
+      aria-hidden="true"
+      initial={reduceMotion ? false : { opacity: 0, scale: 0.7 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      viewport={{ once: true, amount: 0.5 }}
+      transition={{ duration: 0.22, delay, ease: 'easeOut' }}
+      className={`flex h-8 items-center justify-center rounded-btn border sm:h-9 ${tone}`}
+    >
+      {status === 'free' ? (
+        <Check className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+      ) : status === 'busy' ? (
+        <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+      ) : (
+        <span className="h-px w-3 rounded-full bg-current" />
+      )}
+    </motion.span>
   );
 };
+
+const MiniDates = ({ reduceMotion }) => (
+  <div className="w-full space-y-3.5">
+    {/* Header */}
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-2.5">
+      <div className="flex items-center gap-2">
+        <Calendar className="h-4 w-4 text-accent" />
+        <span className="font-sans text-xs font-semibold text-text-muted">
+          Group availability
+        </span>
+      </div>
+      <div className="flex items-center gap-3 font-sans text-[11px] text-text-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-[4px] border border-success/30 bg-success/15" />
+          Free
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-[4px] border border-error/30 bg-error/15" />
+          Busy
+        </span>
+        <span className="font-mono text-text-primary">{AVAILABILITY_TOTAL} joined</span>
+      </div>
+    </div>
+
+    {/* Matrix */}
+    <div className="grid grid-cols-[5.25rem_repeat(4,minmax(0,1fr))] items-center gap-x-1.5 gap-y-1.5 sm:grid-cols-[7.5rem_repeat(4,minmax(0,1fr))] sm:gap-x-2 sm:gap-y-2">
+      {/* Day header row */}
+      <span className="truncate font-sans text-[10px] text-text-muted">People</span>
+      {AVAILABILITY_TALLY.map((day) => {
+        const isBest = day.id === AVAILABILITY_BEST.id;
+        return (
+          <div
+            key={day.id}
+            className={`flex flex-col items-center gap-0.5 rounded-btn py-1 ${
+              isBest ? 'bg-accent-secondary/10' : ''
+            }`}
+          >
+            <span
+              className={`font-sans text-[11px] font-semibold sm:text-xs ${
+                isBest ? 'text-accent-secondary' : 'text-text-primary'
+              }`}
+            >
+              {day.dow}
+            </span>
+            <span className="font-mono text-[10px] text-text-muted">{day.date}</span>
+            {isBest && (
+              <span className="mt-0.5 h-0.5 w-4 rounded-full bg-accent-secondary" />
+            )}
+          </div>
+        );
+      })}
+
+      {/* Participant rows */}
+      {AVAILABILITY_PEOPLE.map((person, rowIndex) => (
+        <Fragment key={person.id}>
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-surface-2 font-mono text-[9px] font-semibold text-text-muted">
+              {person.initials}
+            </span>
+            <span className="truncate font-sans text-[11px] font-medium text-text-primary">
+              {person.name}
+            </span>
+          </div>
+          {AVAILABILITY_TALLY.map((day, dayIndex) => (
+            <AvailabilityCell
+              key={day.id}
+              status={person.cells[day.id]}
+              isBest={day.id === AVAILABILITY_BEST.id}
+              delay={0.025 * (rowIndex * AVAILABILITY_TALLY.length + dayIndex)}
+              reduceMotion={reduceMotion}
+            />
+          ))}
+        </Fragment>
+      ))}
+
+      {/* Summary row */}
+      <span className="border-t border-border pt-2 font-sans text-[11px] font-medium text-text-muted">
+        Free
+      </span>
+      {AVAILABILITY_TALLY.map((day) => {
+        const isBest = day.id === AVAILABILITY_BEST.id;
+        return (
+          <div
+            key={day.id}
+            className="flex items-center justify-center border-t border-border py-2"
+          >
+            <span className="font-mono text-xs">
+              <span
+                className={`font-bold ${
+                  isBest ? 'text-accent-secondary' : 'text-text-primary'
+                }`}
+              >
+                {day.free}
+              </span>
+              <span className="text-text-muted">/{AVAILABILITY_TOTAL}</span>
+            </span>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* Resolution callout */}
+    <motion.div
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.6 }}
+      transition={{ duration: 0.35, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+      className="flex items-center justify-between gap-3 rounded-btn border border-accent-secondary/25 bg-accent-secondary/10 px-3 py-2.5"
+    >
+      <div className="flex min-w-0 items-center gap-2.5">
+        <motion.span
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-secondary/15 text-accent-secondary"
+          animate={reduceMotion ? undefined : { scale: [1, 1.12, 1] }}
+          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+        </motion.span>
+        <p className="font-sans text-xs leading-snug">
+          <span className="font-semibold text-text-primary">
+            {AVAILABILITY_BEST.full}
+          </span>
+          <span className="text-text-muted">
+            {' '}
+            ·{' '}
+            {AVAILABILITY_BEST.free === AVAILABILITY_TOTAL
+              ? 'everyone is free'
+              : `${AVAILABILITY_BEST.free} of ${AVAILABILITY_TOTAL} free`}
+          </span>
+        </p>
+      </div>
+      <span className="shrink-0 rounded-btn bg-accent-secondary/15 px-2 py-0.5 font-sans text-[10px] font-semibold text-accent-secondary">
+        Best date
+      </span>
+    </motion.div>
+  </div>
+);
 
 /* -------------------------------------------------------------------------- */
 /* Demo 4: MiniLock - Decision Lock-in Demo                                   */
