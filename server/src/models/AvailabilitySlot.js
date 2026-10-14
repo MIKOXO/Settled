@@ -1,31 +1,15 @@
 import { Schema, model } from 'mongoose';
 
+import { objectId, timestamps } from './schemaHelpers.js';
+
 const availabilitySlotSchema = new Schema(
   {
-    boardId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Board',
-      required: true,
-      index: true,
-    },
-    participantId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Participant',
-      required: true,
-    },
-    date: {
-      type: Date,
-      required: true,
-    },
-    status: {
-      type: String,
-      enum: ['free', 'busy'],
-      required: true,
-    },
+    boardId: objectId('Board', { required: true, index: true }),
+    participantId: objectId('Participant', { required: true }),
+    date: { type: Date, required: true },
+    status: { type: String, enum: ['free', 'busy'], required: true },
   },
-  {
-    timestamps: { createdAt: true, updatedAt: false },
-  },
+  timestamps(false),
 );
 
 availabilitySlotSchema.index(
@@ -33,4 +17,7 @@ availabilitySlotSchema.index(
   { unique: true },
 );
 
-export const AvailabilitySlot = model('AvailabilitySlot', availabilitySlotSchema);
+export const AvailabilitySlot = model(
+  'AvailabilitySlot',
+  availabilitySlotSchema,
+);

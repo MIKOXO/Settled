@@ -1,27 +1,14 @@
 import { Schema, model } from 'mongoose';
 
+import { objectId, timestamps } from './schemaHelpers.js';
+
 const commentSchema = new Schema(
   {
-    optionId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Option',
-      required: true,
-      index: true,
-    },
-    participantId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Participant',
-      required: true,
-    },
-    body: {
-      type: String,
-      required: true,
-      trim: true,
-    },
+    optionId: objectId('Option', { required: true, index: true }),
+    participantId: objectId('Participant', { required: true }),
+    body: { type: String, required: true, trim: true },
   },
-  {
-    timestamps: { createdAt: true, updatedAt: false },
-  },
+  timestamps(false),
 );
 
 export const Comment = model('Comment', commentSchema);

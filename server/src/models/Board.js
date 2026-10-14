@@ -1,55 +1,21 @@
 import crypto from 'node:crypto';
 import { Schema, model } from 'mongoose';
 
+import { objectId, timestamps } from './schemaHelpers.js';
+
 const boardSchema = new Schema(
   {
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    type: {
-      type: String,
-      enum: ['Trip', 'Dinner', 'Event', 'Custom'],
-    },
-    typeLabel: {
-      type: String,
-      trim: true,
-      maxlength: 50,
-    },
-    status: {
-      type: String,
-      enum: ['open', 'decided'],
-      default: 'open',
-      required: true,
-    },
-    ownerId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Participant',
-      required: true,
-    },
-    inviteToken: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    decisionDeadline: {
-      type: Date,
-    },
-    optionsOwnerOnly: {
-      type: Boolean,
-      default: false,
-      required: true,
-    },
-    decidedOptionId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Option',
-      default: null,
-    },
+    name: { type: String, required: true, trim: true },
+    type: { type: String, enum: ['Trip', 'Dinner', 'Event', 'Custom'] },
+    typeLabel: { type: String, trim: true, maxlength: 50 },
+    status: { type: String, enum: ['open', 'decided'], default: 'open', required: true },
+    ownerId: objectId('Participant', { required: true }),
+    inviteToken: { type: String, required: true, unique: true },
+    decisionDeadline: { type: Date },
+    optionsOwnerOnly: { type: Boolean, default: false, required: true },
+    decidedOptionId: objectId('Option', { default: null }),
   },
-  {
-    timestamps: { createdAt: true, updatedAt: false },
-  },
+  timestamps(false),
 );
 
 boardSchema.statics.generateInviteToken = function generateInviteToken() {
