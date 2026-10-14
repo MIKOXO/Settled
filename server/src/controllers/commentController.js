@@ -1,4 +1,5 @@
 import { catchAsync } from '../utils/catchAsync.js';
+import { ok } from '../utils/respond.js';
 import { createCommentSchema, listCommentsQuerySchema } from '../validators/comment.js';
 import * as commentService from '../services/commentService.js';
 
@@ -11,26 +12,20 @@ const commentData = (comment, participantName) => ({
   createdAt: comment.createdAt,
 });
 
-const optionCommentsData = (option) => ({
-  id: option._id,
-  commentCount: option.commentCount,
-});
+const optionCountData = (option) => ({ id: option._id, commentCount: option.commentCount });
 
 export const createComment = catchAsync(async (req, res) => {
   const input = createCommentSchema.parse(req.body);
-  const { comment, option, participantName } = await commentService.createComment(
-    req.participant.id,
-    req.params.id,
-    input,
-  );
-  res.status(201).json({
-    success: true,
-    data: {
-      comment: commentData(comment, participantName),
-      option: optionCommentsData(option),
+  const result = await commentService.createComment(req.participant.id, req.params.id, input);
+
+  return ok(
+    res,
+    {
+      comment: commentData(result.comment, result.participantName),
+      option: optionCountData(result.option),
     },
-    error: null,
-  });
+    201,
+  );
 });
 
 export const listComments = catchAsync(async (req, res) => {
@@ -39,12 +34,9 @@ export const listComments = catchAsync(async (req, res) => {
     req.params.id,
     query,
   );
-  res.status(200).json({
-    success: true,
-    data: {
-      comments: comments.map((c) => commentData(c, nameMap.get(c.participantId.toString()) ?? null)),
-      nextCursor,
-    },
-    error: null,
+
+  return ok(res, {
+    comments: comments.map((c) => commentData(c, nameMap.get(c.participantId.toString()))),
+    nextCursor,
   });
 });

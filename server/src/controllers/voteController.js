@@ -1,44 +1,33 @@
 import { catchAsync } from '../utils/catchAsync.js';
+import { ok } from '../utils/respond.js';
 import { voteSchema } from '../validators/vote.js';
 import * as voteService from '../services/voteService.js';
 
+const scoreData = (option) => ({
+  id: option._id,
+  likesCount: option.likesCount,
+  dislikesCount: option.dislikesCount,
+  score: option.likesCount - option.dislikesCount,
+});
+
 export const castVote = catchAsync(async (req, res) => {
-  const input = voteSchema.parse(req.body);
-  const result = await voteService.castVote(req.participant.id, req.params.id, input.value);
-  res.status(200).json({
-    success: true,
-    data: {
-      vote: {
-        id: result.vote._id,
-        optionId: result.vote.optionId,
-        participantId: result.vote.participantId,
-        value: result.vote.value,
-        createdAt: result.vote.createdAt,
-        updatedAt: result.vote.updatedAt,
-      },
-      option: {
-        id: result.option._id,
-        likesCount: result.option.likesCount,
-        dislikesCount: result.option.dislikesCount,
-        score: result.option.likesCount - result.option.dislikesCount,
-      },
+  const { value } = voteSchema.parse(req.body);
+  const result = await voteService.castVote(req.participant.id, req.params.id, value);
+
+  return ok(res, {
+    vote: {
+      id: result.vote._id,
+      optionId: result.vote.optionId,
+      participantId: result.vote.participantId,
+      value: result.vote.value,
+      createdAt: result.vote.createdAt,
+      updatedAt: result.vote.updatedAt,
     },
-    error: null,
+    option: scoreData(result.option),
   });
 });
 
 export const removeVote = catchAsync(async (req, res) => {
   const result = await voteService.removeVote(req.participant.id, req.params.id);
-  res.status(200).json({
-    success: true,
-    data: {
-      option: {
-        id: result.option._id,
-        likesCount: result.option.likesCount,
-        dislikesCount: result.option.dislikesCount,
-        score: result.option.likesCount - result.option.dislikesCount,
-      },
-    },
-    error: null,
-  });
+  return ok(res, { option: scoreData(result.option) });
 });

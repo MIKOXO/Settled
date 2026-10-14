@@ -1,4 +1,5 @@
 import { catchAsync } from '../utils/catchAsync.js';
+import { ok } from '../utils/respond.js';
 import {
   removeAvailabilitySchema,
   upsertAvailabilitySchema,
@@ -12,33 +13,26 @@ export const upsertAvailability = catchAsync(async (req, res) => {
     req.params.boardId,
     input,
   );
-  res.status(200).json({
-    success: true,
-    data: {
-      slot: {
-        id: slot._id,
-        boardId: slot.boardId,
-        participantId: slot.participantId,
-        date: slot.date,
-        status: slot.status,
-      },
+
+  return ok(res, {
+    slot: {
+      id: slot._id,
+      boardId: slot.boardId,
+      participantId: slot.participantId,
+      date: slot.date,
+      status: slot.status,
     },
-    error: null,
   });
 });
 
 export const removeAvailability = catchAsync(async (req, res) => {
-  const { date } = removeAvailabilitySchema.parse({ date: req.params.date });
+  const input = removeAvailabilitySchema.parse({ date: req.params.date });
   await availabilityService.removeAvailability(
     req.participant.id,
     req.params.boardId,
-    { date },
+    input,
   );
-  res.status(200).json({
-    success: true,
-    data: { removed: true },
-    error: null,
-  });
+  return ok(res, { removed: true });
 });
 
 export const listAvailability = catchAsync(async (req, res) => {
@@ -46,16 +40,13 @@ export const listAvailability = catchAsync(async (req, res) => {
     req.params.boardId,
     req.participant.id,
   );
-  res.status(200).json({
-    success: true,
-    data: {
-      slots: slots.map((s) => ({
-        id: s._id,
-        participantId: s.participantId,
-        date: s.date,
-        status: s.status,
-      })),
-    },
-    error: null,
+
+  return ok(res, {
+    slots: slots.map((slot) => ({
+      id: slot._id,
+      participantId: slot.participantId,
+      date: slot.date,
+      status: slot.status,
+    })),
   });
 });
