@@ -1,10 +1,5 @@
-export const createConnectionHandler = (_io) => {
-  const onConnection = (socket) => {
-    const room = `board:${socket.participant.boardId}`;
-    socket.join(room);
+import { boardRoom } from './io.js';
 
-    socket.on('disconnect', () => {});
-  };
-
-  return onConnection;
+export const onConnection = (socket) => {
+  socket.join(boardRoom(socket.participant.boardId));
 };

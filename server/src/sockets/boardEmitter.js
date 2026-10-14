@@ -1,23 +1,12 @@
-import { getIo } from './io.js';
+import { emitToBoard } from './io.js';
 
-export const emitBoardDecided = (boardId, payload) => {
-  const io = getIo();
-  if (!io) return;
-  io.to(`board:${boardId}`).emit('board:decided', payload);
-};
+export const emitBoardDecided = (boardId, payload) =>
+  emitToBoard('board:decided', boardId, payload);
 
-export const emitParticipantRemoved = (boardId, payload) => {
-  const io = getIo();
-  if (!io) return;
-  io.to(`board:${boardId}`).emit('participant:removed', payload);
-};
+export const emitParticipantRemoved = (boardId, payload) =>
+  emitToBoard('participant:removed', boardId, payload);
 
-// Board settings (name, type, optionsOwnerOnly) gate what every participant
-// can do, so a change has to reach every client without a reload. Only the
-// patched keys are broadcast — clients merge the partial into their board,
-// which keeps the payload to what actually changed.
-export const emitBoardUpdated = (boardId, payload) => {
-  const io = getIo();
-  if (!io) return;
-  io.to(`board:${boardId}`).emit('board:updated', payload);
-};
+// Settings gate what every participant can do, so a change has to reach every
+// client. Only patched keys are sent; clients merge the partial into their board.
+export const emitBoardUpdated = (boardId, payload) =>
+  emitToBoard('board:updated', boardId, payload);

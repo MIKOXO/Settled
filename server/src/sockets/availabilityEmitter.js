@@ -1,13 +1,7 @@
-import { getIo } from './io.js';
+import { emitToBoard } from './io.js';
 
-export const emitAvailabilityUpdated = (boardId, payload) => {
-  const io = getIo();
-  if (!io) return;
-  io.to(`board:${boardId}`).emit('availability:updated', payload);
-};
+export const emitAvailabilityUpdated = (boardId, payload) =>
+  emitToBoard('availability:updated', boardId, payload);
 
-export const emitAvailabilityRemoved = (boardId, payload) => {
-  const io = getIo();
-  if (!io) return;
-  io.to(`board:${boardId}`).emit('availability:removed', payload);
-};
+export const emitAvailabilityRemoved = (boardId, payload) =>
+  emitToBoard('availability:removed', boardId, payload);

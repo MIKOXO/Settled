@@ -1,7 +1,4 @@
-import { getIo } from './io.js';
+import { emitToBoard } from './io.js';
 
-export const emitCommentAdded = (boardId, payload) => {
-  const io = getIo();
-  if (!io) return;
-  io.to(`board:${boardId}`).emit('comment:added', payload);
-};
+export const emitCommentAdded = (boardId, payload) =>
+  emitToBoard('comment:added', boardId, payload);
