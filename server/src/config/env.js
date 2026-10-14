@@ -1,11 +1,13 @@
 import 'dotenv/config';
 
+const isNonEmptyString = (value) => typeof value === 'string' && value.length > 0;
+
 const REQUIRED = {
   PORT: { validate: (v) => /^\d+$/.test(v), hint: 'an integer port string' },
-  MONGODB_URI: { validate: (v) => typeof v === 'string' && v.length > 0, hint: 'a non-empty MongoDB connection string' },
-  JWT_SECRET: { validate: (v) => typeof v === 'string' && v.length > 0, hint: 'a non-empty JWT signing secret' },
-  CLIENT_URL: { validate: (v) => typeof v === 'string' && v.length > 0, hint: 'a non-empty client origin URL' },
-  NODE_ENV: { validate: (v) => typeof v === 'string' && v.length > 0, hint: 'development, test, or production' },
+  MONGODB_URI: { validate: isNonEmptyString, hint: 'a non-empty MongoDB connection string' },
+  JWT_SECRET: { validate: isNonEmptyString, hint: 'a non-empty JWT signing secret' },
+  CLIENT_URL: { validate: isNonEmptyString, hint: 'a non-empty client origin URL' },
+  NODE_ENV: { validate: isNonEmptyString, hint: 'development, test, or production' },
 };
 
 const missing = [];
