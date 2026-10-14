@@ -9,23 +9,27 @@ const locationSchema = z
   })
   .strict();
 
+const title = z.string().trim().min(1).max(200);
+const notes = z.string().trim().max(2000);
+const link = z.string().trim().url().max(500);
+
 export const createOptionSchema = z
   .object({
-    title: z.string().trim().min(1).max(200),
-    notes: z.string().trim().max(2000).optional(),
-    link: z.string().trim().url().max(500).optional(),
+    title,
+    notes: notes.optional(),
+    link: link.optional(),
     location: locationSchema.optional(),
   })
   .strict();
 
 export const updateOptionSchema = z
   .object({
-    title: z.string().trim().min(1).max(200).optional(),
-    notes: z.string().trim().max(2000).nullable().optional(),
-    link: z.string().trim().url().max(500).nullable().optional(),
+    title: title.optional(),
+    notes: notes.nullable().optional(),
+    link: link.nullable().optional(),
     location: locationSchema.nullable().optional(),
   })
   .strict()
-  .refine((data) => data.title !== undefined || data.notes !== undefined || data.link !== undefined || data.location !== undefined, {
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
     message: 'At least one of title, notes, link, or location must be provided',
   });

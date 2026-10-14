@@ -1,11 +1,15 @@
 import { z } from 'zod';
 
+const name = z.string().trim().min(1).max(100);
+const type = z.enum(['Trip', 'Dinner', 'Event', 'Custom']);
+const typeLabel = z.string().trim().min(1).max(50);
+
 export const createBoardSchema = z
   .object({
-    name: z.string().trim().min(1).max(100),
-    type: z.enum(['Trip', 'Dinner', 'Event', 'Custom']).optional(),
-    typeLabel: z.string().trim().min(1).max(50).optional(),
-    creatorDisplayName: z.string().trim().min(1).max(100),
+    name,
+    type: type.optional(),
+    typeLabel: typeLabel.optional(),
+    creatorDisplayName: name,
     creatorEmail: z.string().trim().email(),
   })
   .refine((data) => (data.typeLabel ? data.type === 'Custom' : true), {
@@ -15,18 +19,11 @@ export const createBoardSchema = z
 
 export const updateBoardSchema = z
   .object({
-    name: z.string().trim().min(1).max(100).optional(),
-    type: z.enum(['Trip', 'Dinner', 'Event', 'Custom']).optional(),
-    typeLabel: z.string().trim().min(1).max(50).optional(),
+    name: name.optional(),
+    type: type.optional(),
+    typeLabel: typeLabel.optional(),
     optionsOwnerOnly: z.boolean().optional(),
   })
-  .refine(
-    (data) =>
-      data.name !== undefined ||
-      data.type !== undefined ||
-      data.typeLabel !== undefined ||
-      data.optionsOwnerOnly !== undefined,
-    {
-      message: 'At least one of name, type, typeLabel, or optionsOwnerOnly must be provided',
-    },
-  );
+  .refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: 'At least one of name, type, typeLabel, or optionsOwnerOnly must be provided',
+  });
