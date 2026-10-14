@@ -97,6 +97,21 @@ export const attachPhoto = async (optionId, buffer, contentType, extension) => {
   return option;
 };
 
+// Detaches the photo without touching storage — the B2 object is left orphaned,
+// the same MVP tradeoff as re-uploads overwriting the one key. Clients see the
+// clear through the ordinary `option:updated` broadcast, so removing a photo
+// needs no event of its own.
+export const removePhoto = async (optionId) => {
+  const option = await getOptionOr404(optionId);
+
+  option.photoKey = null;
+  await option.save();
+
+  emitOptionUpdated(option, await findLeadingOptionIds(option.boardId));
+
+  return option;
+};
+
 export const updateOption = async (optionId, patch) => {
   const option = await getOptionOr404(optionId);
   const { location, ...fields } = patch;

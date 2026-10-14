@@ -5,7 +5,7 @@ import { validateObjectId } from '../middleware/validateObjectId.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireOptionBoardMembership } from '../middleware/requireOptionBoardMembership.js';
 import { requireCanCreateOption } from '../middleware/requireCanCreateOption.js';
-import { requireCanAttachPhoto } from '../middleware/requireCanAttachPhoto.js';
+import { requireCanManagePhoto } from '../middleware/requireCanManagePhoto.js';
 import { requireCanManageOption } from '../middleware/requireCanManageOption.js';
 import { resolvePhotoExtension } from '../middleware/resolvePhotoExtension.js';
 import * as optionController from '../controllers/optionController.js';
@@ -29,10 +29,18 @@ router.post(
   requireAuth,
   optionId,
   requireOptionBoardMembership,
-  requireCanAttachPhoto,
+  requireCanManagePhoto,
   upload.single('photo'),
   resolvePhotoExtension,
   optionController.storeOptionPhoto,
+);
+router.delete(
+  '/options/:id/photo',
+  requireAuth,
+  optionId,
+  requireOptionBoardMembership,
+  requireCanManagePhoto,
+  optionController.deleteOptionPhoto,
 );
 router.patch(
   '/options/:id',

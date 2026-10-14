@@ -20,6 +20,11 @@ export const storeOptionPhoto = catchAsync(async (req, res) => {
   return ok(res, { option: serializeOptionSummary(option) });
 });
 
+export const deleteOptionPhoto = catchAsync(async (req, res) => {
+  const option = await optionService.removePhoto(req.params.id);
+  return ok(res, { option: serializeOptionSummary(option) });
+});
+
 export const updateOption = catchAsync(async (req, res) => {
   const patch = updateOptionSchema.parse(req.body);
   const option = await optionService.updateOption(req.params.id, patch);
