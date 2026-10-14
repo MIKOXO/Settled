@@ -21,6 +21,10 @@ const useBoardSocket = (boardId) => {
   const sessionId = useSelector((state) => state.session?.id);
 
   useEffect(() => {
+    // Depends on `useSocket()` having already created the instance — in
+    // BoardPage the two are called adjacently and React runs effects in
+    // declaration order, so this never bails. Keep the calls adjacent, or move
+    // the creation here, or the board connects but stops receiving events.
     const socket = getSocket();
     if (!socket) return undefined;
 
