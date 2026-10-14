@@ -2,15 +2,39 @@ import { Option } from '../models/Option.js';
 import { Location } from '../models/Location.js';
 import { Vote } from '../models/Vote.js';
 import { Comment } from '../models/Comment.js';
-import { uploadToB2, getSignedPhotoUrl } from '../utils/b2.js';
 import { createAppError } from '../utils/AppError.js';
+import { uploadToB2 } from '../utils/b2.js';
 import { assertBoardOpen } from '../utils/boardGuard.js';
+import { serializeOption } from '../utils/serialize.js';
+import { pickDefined } from '../utils/pickDefined.js';
 import { findLeadingOptionIds } from './voteService.js';
 import {
   emitOptionCreated,
   emitOptionUpdated,
   emitOptionDeleted,
 } from '../sockets/optionEmitter.js';
+
+const getOptionOr404 = async (optionId) => {
+  const option = await Option.findById(optionId);
+  if (!option) {
+    throw createAppError('Option not found', 404);
+  }
+  return option;
+};
+
+const saveOptionLocation = async (option, location) => {
+  if (!option.locationId) {
+    const created = await Location.create({
+      ...location,
+      optionId: option._id,
+      addedBy: option.createdBy,
+    });
+    return created._id;
+  }
+
+  await Location.findByIdAndUpdate(option.locationId, location, { runValidators: true });
+  return option.locationId;
+};
 
 export const createOption = async (participantId, board, input) => {
   assertBoardOpen(board);
@@ -24,16 +48,7 @@ export const createOption = async (participantId, board, input) => {
   });
 
   if (input.location) {
-    const location = await Location.create({
-      optionId: option._id,
-      lat: input.location.lat,
-      lng: input.location.lng,
-      placeName: input.location.placeName,
-      placeSource: input.location.placeSource,
-      addedBy: participantId,
-    });
-
-    option.locationId = location._id;
+    option.locationId = await saveOptionLocation(option, input.location);
     await option.save();
   }
 
@@ -49,51 +64,27 @@ export const listOptionsByBoard = async (boardId, participantId) => {
     .populate('locationId')
     .sort({ createdAt: -1 });
 
-  const optionIds = options.map((o) => o._id);
-
   const [votes, leadingIds] = await Promise.all([
     participantId
-      ? Vote.find({ optionId: { $in: optionIds }, participantId })
-      : Promise.resolve([]),
+      ? Vote.find({ optionId: { $in: options.map((o) => o._id) }, participantId })
+      : [],
     findLeadingOptionIds(boardId),
   ]);
 
-  const voteMap = new Map(votes.map((v) => [v.optionId.toString(), v.value]));
-  const leadingSet = new Set(leadingIds);
+  const voteMap = new Map(votes.map((vote) => [vote.optionId.toString(), vote.value]));
 
   return Promise.all(
-    options.map(async (option) => {
-      const photoUrl = option.photoKey ? await getSignedPhotoUrl(option.photoKey) : null;
-      const score = option.likesCount - option.dislikesCount;
-      return {
-        id: option._id,
-        boardId: option.boardId,
-        createdBy: option.createdBy,
-        title: option.title,
-        notes: option.notes ?? null,
-        link: option.link ?? null,
-        photoKey: option.photoKey ?? null,
-        locationId: option.locationId?._id ?? null,
-        likesCount: option.likesCount,
-        dislikesCount: option.dislikesCount,
-        commentCount: option.commentCount,
-        score,
-        isLeading: leadingSet.has(option._id.toString()),
+    options.map((option) =>
+      serializeOption(option, {
+        leadingIds,
         vote: voteMap.get(option._id.toString()) ?? null,
-        createdAt: option.createdAt,
-        updatedAt: option.updatedAt,
-        photoUrl,
-        location: option.locationId ?? null,
-      };
-    }),
+      }),
+    ),
   );
 };
 
 export const attachPhoto = async (optionId, buffer, contentType, extension) => {
-  const option = await Option.findById(optionId);
-  if (!option) {
-    throw createAppError('Option not found', 404);
-  }
+  const option = await getOptionOr404(optionId);
 
   const key = `options/${optionId}/photo.${extension}`;
   await uploadToB2(buffer, key, contentType);
@@ -107,47 +98,18 @@ export const attachPhoto = async (optionId, buffer, contentType, extension) => {
 };
 
 export const updateOption = async (optionId, patch) => {
-  const option = await Option.findById(optionId);
-  if (!option) {
-    throw createAppError('Option not found', 404);
-  }
+  const option = await getOptionOr404(optionId);
+  const { location, ...fields } = patch;
 
-  if (patch.title !== undefined) option.title = patch.title;
+  Object.assign(option, pickDefined(fields));
 
-  if (patch.notes !== undefined) option.notes = patch.notes;
-
-  if (patch.link !== undefined) option.link = patch.link;
-
-  if (patch.location !== undefined) {
-    if (patch.location === null) {
-      if (option.locationId) {
-        await Location.findByIdAndDelete(option.locationId);
-        option.locationId = null;
-      }
-    } else {
-      if (option.locationId) {
-        await Location.findByIdAndUpdate(
-          option.locationId,
-          {
-            lat: patch.location.lat,
-            lng: patch.location.lng,
-            placeName: patch.location.placeName,
-            placeSource: patch.location.placeSource,
-          },
-          { runValidators: true },
-        );
-      } else {
-        const location = await Location.create({
-          optionId: option._id,
-          lat: patch.location.lat,
-          lng: patch.location.lng,
-          placeName: patch.location.placeName,
-          placeSource: patch.location.placeSource,
-          addedBy: option.createdBy,
-        });
-        option.locationId = location._id;
-      }
+  if (location === null) {
+    if (option.locationId) {
+      await Location.findByIdAndDelete(option.locationId);
+      option.locationId = null;
     }
+  } else if (location) {
+    option.locationId = await saveOptionLocation(option, location);
   }
 
   await option.save();
@@ -158,20 +120,11 @@ export const updateOption = async (optionId, patch) => {
 };
 
 export const deleteOption = async (optionId) => {
-  const option = await Option.findById(optionId);
-  if (!option) {
-    throw createAppError('Option not found', 404);
-  }
+  const option = await getOptionOr404(optionId);
 
-  // Dependents go first. A vote or comment that outlives its option is an
-  // orphan nothing can render, aggregate, or ever clean up — and deleting the
-  // option first would open a window where it is gone but they aren't. Ordering
-  // it this way is the only way to keep a failed child delete from taking the
-  // option with it.
-  //
-  // Contrast with removeParticipant, which deliberately keeps a removed
-  // participant's votes and comments as history: there the records still mean
-  // something, here the thing they describe is gone.
+  // Dependents go first: a vote or comment outliving its option is an orphan
+  // nothing can render, aggregate, or clean up. Contrast removeParticipant,
+  // which deliberately keeps a removed member's votes and comments as history.
   await Promise.all([
     option.locationId ? Location.findByIdAndDelete(option.locationId) : null,
     Vote.deleteMany({ optionId: option._id }),

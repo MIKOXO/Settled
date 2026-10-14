@@ -8,6 +8,21 @@ import { env } from '../config/env.js';
 
 const INACTIVITY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
 
+const getBoardOr404 = async (boardId) => {
+  const board = await Board.findById(boardId);
+  if (!board) {
+    throw createAppError('Board not found', 404);
+  }
+  return board;
+};
+
+/** Fire-and-forget presence ping; a failed write must never fail the request. */
+export const touchLastActive = (participantId) => {
+  Participant.findByIdAndUpdate(participantId, { lastActiveAt: new Date() })
+    .exec()
+    .catch(() => {});
+};
+
 export const getMe = async (participantId) => {
   const participant = await Participant.findById(participantId)
     .select('displayName email role boardId lastActiveAt createdAt')
@@ -17,12 +32,9 @@ export const getMe = async (participantId) => {
     throw createAppError('Participant not found', 404);
   }
 
-  let board = null;
-  if (participant.boardId) {
-    board = await Board.findById(participant.boardId)
-      .select('name type status')
-      .lean();
-  }
+  const board = participant.boardId
+    ? await Board.findById(participant.boardId).select('name type status').lean()
+    : null;
 
   return { participant, board };
 };
@@ -33,20 +45,22 @@ export const joinBoard = async (inviteToken, input, existingParticipantId = null
     throw createAppError('Invalid invite link', 404);
   }
 
-  let participant = null;
-  if (existingParticipantId) {
-    participant = await Participant.findOne({
-      _id: existingParticipantId,
-      boardId: board._id,
-    });
+  // Re-joining from the same session returns the existing participant rather than
+  // creating a duplicate (accepted MVP tradeoff: no invite is single-use).
+  const existing = existingParticipantId
+    ? await Participant.findOne({ _id: existingParticipantId, boardId: board._id })
+    : null;
+
+  if (existing) {
+    return {
+      participant: existing,
+      board,
+      token: signSessionToken(existing._id, board._id, existing.role),
+      existing: true,
+    };
   }
 
-  if (participant) {
-    const token = signSessionToken(participant._id, board._id, participant.role);
-    return { participant, board, token, existing: true };
-  }
-
-  participant = await Participant.create({
+  const participant = await Participant.create({
     boardId: board._id,
     displayName: input.displayName,
     email: input.email.toLowerCase(),
@@ -54,9 +68,12 @@ export const joinBoard = async (inviteToken, input, existingParticipantId = null
     lastActiveAt: new Date(),
   });
 
-  const token = signSessionToken(participant._id, board._id, 'member');
-
-  return { participant, board, token, existing: false };
+  return {
+    participant,
+    board,
+    token: signSessionToken(participant._id, board._id, 'member'),
+    existing: false,
+  };
 };
 
 export const recoverRequest = async (email) => {
@@ -64,18 +81,16 @@ export const recoverRequest = async (email) => {
     .populate('boardId', 'name type typeLabel')
     .lean();
 
-  const boards = [];
-  for (const participant of participants) {
-    if (!participant.boardId) continue;
-
-    const recoveryToken = signRecoveryToken(participant._id);
-    boards.push({
+  // One email goes out per board the address is attached to — an arbitrary
+  // single board would lock the user out of the rest.
+  const boards = participants
+    .filter((participant) => participant.boardId)
+    .map((participant) => ({
       name: participant.boardId.name,
       type: participant.boardId.type ?? null,
       typeLabel: participant.boardId.typeLabel ?? null,
-      url: `${env.CLIENT_URL}/recover/confirm?token=${recoveryToken}`,
-    });
-  }
+      url: `${env.CLIENT_URL}/recover/confirm?token=${signRecoveryToken(participant._id)}`,
+    }));
 
   if (boards.length === 0) return;
 
@@ -94,25 +109,20 @@ export const recover = async (token) => {
     throw createAppError('Participant not found', 404);
   }
 
-  const board = await Board.findById(participant.boardId);
-  if (!board) {
-    throw createAppError('Board not found', 404);
-  }
-
-  const sessionToken = signSessionToken(participant._id, board._id, participant.role);
+  const board = await getBoardOr404(participant.boardId);
 
   participant.lastActiveAt = new Date();
   await participant.save();
 
-  return { participant, board, token: sessionToken };
+  return {
+    participant,
+    board,
+    token: signSessionToken(participant._id, board._id, participant.role),
+  };
 };
 
 export const listBoardParticipants = async (boardId) => {
-  const board = await Board.findById(boardId).lean();
-  if (!board) {
-    throw createAppError('Board not found', 404);
-  }
-
+  await getBoardOr404(boardId);
   const participants = await Participant.find({ boardId })
     .select('displayName role')
     .lean();
@@ -120,11 +130,13 @@ export const listBoardParticipants = async (boardId) => {
   return { participants };
 };
 
+/**
+ * Transfers ownership rather than creating a second owner, so the exactly-one-
+ * owner invariant holds. Only reachable once the incumbent has been inactive
+ * past the threshold and the board is still undecided.
+ */
 export const claimOwnership = async (participantId, boardId) => {
-  const board = await Board.findById(boardId);
-  if (!board) {
-    throw createAppError('Board not found', 404);
-  }
+  const board = await getBoardOr404(boardId);
 
   if (board.status !== 'open') {
     throw createAppError('Board is no longer open', 403);
@@ -139,9 +151,8 @@ export const claimOwnership = async (participantId, boardId) => {
     throw createAppError('Current owner not found', 404);
   }
 
-  const now = new Date();
   const lastActive = currentOwner.lastActiveAt ?? currentOwner.createdAt;
-  if (now - lastActive < INACTIVITY_THRESHOLD_MS) {
+  if (Date.now() - lastActive < INACTIVITY_THRESHOLD_MS) {
     throw createAppError(
       'Current owner is still active — ownership cannot be claimed yet',
       403,
@@ -149,7 +160,7 @@ export const claimOwnership = async (participantId, boardId) => {
   }
 
   const newOwner = await Participant.findById(participantId);
-  if (!newOwner || newOwner.boardId.toString() !== boardId) {
+  if (!newOwner || newOwner.boardId?.toString() !== boardId) {
     throw createAppError('Participant not found on this board', 404);
   }
 
@@ -159,7 +170,7 @@ export const claimOwnership = async (participantId, boardId) => {
   newOwner.role = 'owner';
   await newOwner.save();
 
-  board.ownerId = participantId;
+  board.ownerId = newOwner._id;
   await board.save();
 
   return { board, newOwner, previousOwner: currentOwner };

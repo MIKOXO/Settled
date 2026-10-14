@@ -1,29 +1,19 @@
 import { AvailabilitySlot } from '../models/AvailabilitySlot.js';
-import { Board } from '../models/Board.js';
-import { Participant } from '../models/Participant.js';
-import { createAppError } from '../utils/AppError.js';
+import { findBoardForParticipant } from '../utils/membership.js';
 import { emitAvailabilityUpdated, emitAvailabilityRemoved } from '../sockets/availabilityEmitter.js';
 
 const normalizeToMidnightUtc = (dateStr) => {
-  const d = new Date(dateStr);
-  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+  const date = new Date(dateStr);
+  return new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
 };
 
 export const upsertAvailability = async (participantId, boardId, { date, status }) => {
-  const board = await Board.findById(boardId);
-  if (!board) {
-    throw createAppError('Board not found', 404);
-  }
-
-  const participant = await Participant.findOne({ _id: participantId, boardId });
-  if (!participant) {
-    throw createAppError('Participant not found on this board', 403);
-  }
-
-  const normalizedDate = normalizeToMidnightUtc(date);
+  await findBoardForParticipant(participantId, boardId);
 
   const slot = await AvailabilitySlot.findOneAndUpdate(
-    { boardId, participantId, date: normalizedDate },
+    { boardId, participantId, date: normalizeToMidnightUtc(date) },
     { status },
     { upsert: true, new: true, runValidators: true, setDefaultsOnInsert: true },
   );
@@ -38,42 +28,20 @@ export const upsertAvailability = async (participantId, boardId, { date, status 
 };
 
 export const removeAvailability = async (participantId, boardId, { date }) => {
-  const board = await Board.findById(boardId);
-  if (!board) {
-    throw createAppError('Board not found', 404);
-  }
-
-  const participant = await Participant.findOne({ _id: participantId, boardId });
-  if (!participant) {
-    throw createAppError('Participant not found on this board', 403);
-  }
+  await findBoardForParticipant(participantId, boardId);
 
   const normalizedDate = normalizeToMidnightUtc(date);
 
-  await AvailabilitySlot.findOneAndDelete({
-    boardId,
-    participantId,
-    date: normalizedDate,
-  });
+  // Idempotent: a missing slot is still a success, so a double-tap can't error.
+  await AvailabilitySlot.findOneAndDelete({ boardId, participantId, date: normalizedDate });
 
-  emitAvailabilityRemoved(boardId, {
-    participantId,
-    date: normalizedDate,
-  });
+  emitAvailabilityRemoved(boardId, { participantId, date: normalizedDate });
 
   return { date: normalizedDate };
 };
 
 export const listAvailability = async (boardId, participantId) => {
-  const board = await Board.findById(boardId);
-  if (!board) {
-    throw createAppError('Board not found', 404);
-  }
-
-  const participant = await Participant.findOne({ _id: participantId, boardId });
-  if (!participant) {
-    throw createAppError('Participant not found on this board', 403);
-  }
+  await findBoardForParticipant(participantId, boardId);
 
   const slots = await AvailabilitySlot.find({ boardId })
     .select('participantId date status')

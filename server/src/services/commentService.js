@@ -7,12 +7,11 @@ import { emitCommentAdded } from '../sockets/commentEmitter.js';
 
 const decodeCursor = (cursor) => {
   try {
-    const raw = Buffer.from(cursor, 'base64url').toString('utf8');
-    const parsed = JSON.parse(raw);
-    if (!parsed.createdAt || !parsed.id) return null;
-    const createdAt = new Date(parsed.createdAt);
-    if (Number.isNaN(createdAt.getTime())) return null;
-    return { createdAt, id: parsed.id };
+    const { createdAt, id } = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8'));
+    if (!createdAt || !id) return null;
+    const date = new Date(createdAt);
+    if (Number.isNaN(date.getTime())) return null;
+    return { createdAt: date, id };
   } catch {
     return null;
   }
@@ -32,11 +31,7 @@ export const createComment = async (participantId, optionId, input) => {
 
   await assertOptionBoardOpen(option);
 
-  const comment = await Comment.create({
-    optionId,
-    participantId,
-    body: input.body,
-  });
+  const comment = await Comment.create({ optionId, participantId, body: input.body });
 
   const updatedOption = await Option.findByIdAndUpdate(
     optionId,
@@ -45,13 +40,14 @@ export const createComment = async (participantId, optionId, input) => {
   );
 
   const participant = await Participant.findById(participantId).select('displayName');
+  const participantName = participant?.displayName ?? null;
 
   emitCommentAdded(option.boardId, {
     comment: {
       id: comment._id,
       optionId: comment.optionId,
       participantId: comment.participantId,
-      participantName: participant?.displayName ?? null,
+      participantName,
       body: comment.body,
       createdAt: comment.createdAt,
     },
@@ -59,16 +55,18 @@ export const createComment = async (participantId, optionId, input) => {
     commentCount: updatedOption.commentCount,
   });
 
-  return { comment, option: updatedOption, participantName: participant?.displayName ?? null };
+  return { comment, option: updatedOption, participantName };
 };
 
 export const listCommentsByOption = async (optionId, { limit, cursor }) => {
   const filter = { optionId };
-
   const cursorData = cursor ? decodeCursor(cursor) : null;
-  if (!cursorData) {
-    if (cursor) throw createAppError('Invalid cursor', 400);
-  } else {
+
+  if (cursor && !cursorData) {
+    throw createAppError('Invalid cursor', 400);
+  }
+
+  if (cursorData) {
     filter.$or = [
       { createdAt: { $lt: cursorData.createdAt } },
       { createdAt: cursorData.createdAt, _id: { $lt: cursorData.id } },
@@ -79,13 +77,15 @@ export const listCommentsByOption = async (optionId, { limit, cursor }) => {
     .sort({ createdAt: -1, _id: -1 })
     .limit(limit);
 
+  // One lookup for the whole page, not one per comment.
   const participantIds = [...new Set(comments.map((c) => c.participantId.toString()))];
   const participants = participantIds.length
     ? await Participant.find({ _id: { $in: participantIds } }).select('_id displayName')
     : [];
   const nameMap = new Map(participants.map((p) => [p._id.toString(), p.displayName]));
 
-  const nextCursor = comments.length === limit ? encodeCursor(comments[comments.length - 1]) : null;
+  const nextCursor =
+    comments.length === limit ? encodeCursor(comments[comments.length - 1]) : null;
 
   return { comments, nextCursor, nameMap };
 };

@@ -3,14 +3,29 @@ import { Board } from '../models/Board.js';
 import { Participant } from '../models/Participant.js';
 import { env } from '../config/env.js';
 import { createAppError } from '../utils/AppError.js';
-import { emitBoardDecided, emitParticipantRemoved, emitBoardUpdated } from '../sockets/boardEmitter.js';
+import { pickDefined } from '../utils/pickDefined.js';
+import {
+  emitBoardDecided,
+  emitParticipantRemoved,
+  emitBoardUpdated,
+} from '../sockets/boardEmitter.js';
+
+const getBoardOr404 = async (boardId) => {
+  const board = await Board.findById(boardId);
+  if (!board) {
+    throw createAppError('Board not found', 404);
+  }
+  return board;
+};
 
 export const createBoard = async (input) => {
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    const owner = await Participant.create(
+    // The owner is created first so the board can point at them; their boardId is
+    // backfilled once the board exists, which is why this runs as a transaction.
+    const [owner] = await Participant.create(
       [
         {
           displayName: input.creatorDisplayName,
@@ -21,34 +36,30 @@ export const createBoard = async (input) => {
       ],
       { session },
     );
-    const ownerDoc = owner[0];
 
-    const board = await Board.create(
+    const [board] = await Board.create(
       [
-        {
+        pickDefined({
           name: input.name,
-          ...(input.type ? { type: input.type } : {}),
-          ...(input.typeLabel ? { typeLabel: input.typeLabel } : {}),
-          ownerId: ownerDoc._id,
+          type: input.type,
+          typeLabel: input.typeLabel,
+          decisionDeadline: input.decisionDeadline,
+          ownerId: owner._id,
           inviteToken: Board.generateInviteToken(),
-          ...(input.decisionDeadline ? { decisionDeadline: input.decisionDeadline } : {}),
-        },
+        }),
       ],
       { session },
     );
-    const boardDoc = board[0];
 
-    ownerDoc.boardId = boardDoc._id;
-    await ownerDoc.save({ session });
+    owner.boardId = board._id;
+    await owner.save({ session });
 
     await session.commitTransaction();
 
-    const inviteUrl = `${env.CLIENT_URL}/join/${boardDoc.inviteToken}`;
-
     return {
-      board: boardDoc,
-      ownerId: ownerDoc._id,
-      inviteUrl,
+      board,
+      ownerId: owner._id,
+      inviteUrl: `${env.CLIENT_URL}/join/${board.inviteToken}`,
     };
   } catch (err) {
     await session.abortTransaction();
@@ -58,21 +69,10 @@ export const createBoard = async (input) => {
   }
 };
 
-export const getBoardById = async (boardId) => {
-  const board = await Board.findById(boardId);
-  if (!board) {
-    throw createAppError('Board not found', 404);
-  }
-  return board;
-};
+export const getBoardById = (boardId) => getBoardOr404(boardId);
 
 export const updateBoard = async (boardId, patch) => {
-  const updates = {};
-  if (patch.name !== undefined) updates.name = patch.name;
-  if (patch.type !== undefined) updates.type = patch.type;
-  if (patch.typeLabel !== undefined) updates.typeLabel = patch.typeLabel;
-  if (patch.optionsOwnerOnly !== undefined) updates.optionsOwnerOnly = patch.optionsOwnerOnly;
-
+  const updates = pickDefined(patch);
   const board = await Board.findByIdAndUpdate(boardId, updates, {
     returnDocument: 'after',
     runValidators: true,
@@ -81,24 +81,22 @@ export const updateBoard = async (boardId, patch) => {
     throw createAppError('Board not found', 404);
   }
 
-  // Announced only after the write lands, and only for the keys that were
-  // actually persisted — the socket announces confirmed state, it is never
-  // the source of it (invariant 5). Clients merge this partial into their own
-  // board, so an unrelated field can never be clobbered by the broadcast.
-  const changed = {};
-  for (const key of Object.keys(updates)) {
-    changed[key] = board[key] ?? null;
-  }
-  emitBoardUpdated(boardId, changed);
+  // Broadcast only after the write lands, and only for the keys that were
+  // actually persisted (invariant 5). Clients merge the partial, so nothing
+  // unrelated can be clobbered by the broadcast.
+  const confirmed = Object.fromEntries(
+    Object.keys(updates).map((key) => [key, board[key] ?? null]),
+  );
+  emitBoardUpdated(boardId, confirmed);
 
   return board;
 };
 
 export const lockDecision = async (boardId, optionId = null) => {
+  // Re-locking without an option keeps whatever was already decided rather than
+  // clearing it, so `decidedOptionId` is only touched when one was supplied.
   const updates = { status: 'decided' };
-  if (optionId) {
-    updates.decidedOptionId = optionId;
-  }
+  if (optionId) updates.decidedOptionId = optionId;
 
   const board = await Board.findByIdAndUpdate(boardId, updates, {
     returnDocument: 'after',
@@ -118,14 +116,12 @@ export const removeParticipant = async (boardId, participantId, ownerId) => {
     throw createAppError('Cannot remove yourself', 400);
   }
 
-  const participant = await Participant.findOneAndDelete({
-    _id: participantId,
-    boardId,
-  });
+  const participant = await Participant.findOneAndDelete({ _id: participantId, boardId });
   if (!participant) {
     throw createAppError('Participant not found', 404);
   }
 
+  // Votes and comments stay as historical record — only the person is removed.
   emitParticipantRemoved(boardId, { participantId });
 
   return participant;
