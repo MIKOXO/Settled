@@ -2,30 +2,18 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { createAppError } from './AppError.js';
 
-const SESSION_EXPIRY = '30d';
-const RECOVERY_EXPIRY = '15m';
-const WELCOME_EXPIRY = '7d';
+const EXPIRY = { session: '30d', recovery: '15m', welcome: '7d' };
+
+const sign = (payload, expiresIn) => jwt.sign(payload, env.JWT_SECRET, { expiresIn });
 
 export const signSessionToken = (participantId, boardId, role) =>
-  jwt.sign(
-    { sub: participantId, boardId, role, type: 'session' },
-    env.JWT_SECRET,
-    { expiresIn: SESSION_EXPIRY },
-  );
+  sign({ sub: participantId, boardId, role, type: 'session' }, EXPIRY.session);
 
 export const signRecoveryToken = (participantId) =>
-  jwt.sign(
-    { sub: participantId, type: 'recovery' },
-    env.JWT_SECRET,
-    { expiresIn: RECOVERY_EXPIRY },
-  );
+  sign({ sub: participantId, type: 'recovery' }, EXPIRY.recovery);
 
 export const signBoardWelcomeToken = (participantId) =>
-  jwt.sign(
-    { sub: participantId, type: 'welcome' },
-    env.JWT_SECRET,
-    { expiresIn: WELCOME_EXPIRY },
-  );
+  sign({ sub: participantId, type: 'welcome' }, EXPIRY.welcome);
 
 export const verifyToken = (token) => {
   try {
@@ -38,4 +26,17 @@ export const verifyToken = (token) => {
     if (err.isOperational) throw err;
     throw createAppError('Invalid or expired token', 401);
   }
+};
+
+export const verifySessionToken = (token) => {
+  if (!token) {
+    throw createAppError('Authentication required', 401);
+  }
+
+  const payload = verifyToken(token);
+  if (payload.type !== 'session') {
+    throw createAppError('Authentication required', 401);
+  }
+
+  return payload;
 };

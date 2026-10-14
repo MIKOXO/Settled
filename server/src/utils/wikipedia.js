@@ -3,7 +3,6 @@ import { env } from '../config/env.js';
 import { createTtlCache } from './ttlCache.js';
 
 const WIKIPEDIA_CACHE_TTL_MS = 10 * 60 * 1000;
-
 const wikiCache = createTtlCache({ ttlMs: WIKIPEDIA_CACHE_TTL_MS });
 
 const api = axios.create({
@@ -11,18 +10,17 @@ const api = axios.create({
   headers: { 'User-Agent': env.NOMINATIM_USER_AGENT ?? 'Settled/1.0' },
 });
 
-/** OSM's `wikipedia` tag is "lang:Title" — most commonly "en:Title". */
+/** OSM's `wikipedia` extratag is "lang:Title" — most commonly "en:Title". */
 const parseWikiTag = (tag) => {
   if (!tag) return null;
   const [maybeLang, ...rest] = tag.split(':');
-  if (rest.length > 0 && /^[a-z]{2,3}$/.test(maybeLang)) {
-    return { lang: maybeLang, title: rest.join(':') };
-  }
-  return { lang: 'en', title: tag };
+  return rest.length > 0 && /^[a-z]{2,3}$/.test(maybeLang)
+    ? { lang: maybeLang, title: rest.join(':') }
+    : { lang: 'en', title: tag };
 };
 
 const fetchEnwikiTitleForWikidataId = async (qid) => {
-  const response = await api.get('https://www.wikidata.org/w/api.php', {
+  const { data } = await api.get('https://www.wikidata.org/w/api.php', {
     params: {
       action: 'wbgetentities',
       ids: qid,
@@ -32,16 +30,14 @@ const fetchEnwikiTitleForWikidataId = async (qid) => {
     },
   });
 
-  const entity = response.data?.entities?.[qid];
-  return entity?.sitelinks?.enwiki?.title ?? null;
+  return data?.entities?.[qid]?.sitelinks?.enwiki?.title ?? null;
 };
 
 const fetchSummaryForTitle = async (lang, title) => {
-  const response = await api.get(
+  const { data } = await api.get(
     `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
   );
 
-  const data = response.data;
   if (!data?.extract) return null;
 
   return {
@@ -54,11 +50,10 @@ const fetchSummaryForTitle = async (lang, title) => {
 };
 
 /**
- * Wikipedia summary for a place, either from OSM's `wikipedia` extratag
- * ("lang:Title") or its `wikidata` id ("Q…"). Cached briefly like the
- * reverse-geocode cache — popular spots get clicked repeatedly. Failures are
- * soft: they return null so a place lookup never breaks because Wikipedia is
- * unreachable or has no article.
+ * Resolves a place's Wikipedia summary from either its OSM `wikipedia` extratag
+ * or its `wikidata` id. Failures are soft — every path returns null rather than
+ * throwing, so a place lookup never breaks because Wikipedia is unreachable or
+ * has no article.
  */
 export const fetchWikipediaSummary = async ({ wikipediaTag, wikidataId } = {}) => {
   try {

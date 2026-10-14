@@ -13,10 +13,10 @@ const BRAND = {
 const FONT_STACK =
   "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
+const HTML_ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
 const escapeHtml = (value) =>
-  String(value).replace(/[&<>"']/g, (ch) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[ch],
-  );
+  String(value).replace(/[&<>"']/g, (ch) => HTML_ENTITIES[ch]);
 
 const baseLayout = (content) => `
 <!DOCTYPE html>
