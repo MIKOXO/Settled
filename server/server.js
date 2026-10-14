@@ -5,23 +5,18 @@ import app from './app.js';
 import { env } from './src/config/env.js';
 import { connectDB } from './src/config/db.js';
 import { socketAuth } from './src/sockets/authMiddleware.js';
-import { createConnectionHandler } from './src/sockets/connectionHandler.js';
+import { onConnection } from './src/sockets/connectionHandler.js';
 import { setIo } from './src/sockets/io.js';
 
 const start = async () => {
   const httpServer = createServer(app);
-
   const io = new Server(httpServer, {
-    cors: {
-      origin: env.CLIENT_URL,
-      credentials: true,
-    },
+    cors: { origin: env.CLIENT_URL, credentials: true },
   });
 
   setIo(io);
-
   io.use(socketAuth);
-  io.on('connection', createConnectionHandler(io));
+  io.on('connection', onConnection);
 
   await connectDB();
 
