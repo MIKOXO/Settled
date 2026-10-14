@@ -1,32 +1,46 @@
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
+import { useParams } from 'react-router-dom';
 import { Loader2, Save, X } from 'lucide-react';
-import { updateOption } from '../../services/options';
-import { updateOptionDetails } from '../../store/boardSlice';
+import {
+  deleteOptionPhoto,
+  fetchOptions,
+  updateOption,
+  uploadOptionPhoto,
+} from '../../services/options';
+import { setOptions, updateOptionDetails } from '../../store/boardSlice';
 import ErrorBanner from '../../components/ErrorBanner';
-import FieldError from '../../components/FieldError';
 import useFormErrors from '../../hooks/useFormErrors';
 import { mapValidationIssues } from '../../utils/validationErrors';
-
-const inputClasses =
-  'w-full rounded-btn border border-border bg-surface px-3.5 py-2.5 font-sans text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-accent transition-colors duration-200';
+import { toLocationPayload } from '../../utils/optionLocation';
+import OptionFields from './OptionFields';
 
 /**
  * In-place editor for an existing option, opened from the card's pencil control.
  *
- * Scope is the text fields only — title, notes, link. The location lives on a
- * separate Location document and editing it means re-picking on a map, which
- * doesn't belong inside a card; that's a change for the option form, not here.
+ * Same fields, same order, same grid as the propose form — `OptionFields` owns
+ * that, so the two can't drift.
  *
- * Emptied notes/link are sent as `null` rather than omitted: the PATCH schema
- * treats null as "clear this field", so leaving them out would make the fields
- * impossible to empty once set.
+ * Only what was touched is sent. The place is a separate Location document, so
+ * an untouched one is left out of the PATCH rather than round-tripped; a photo
+ * rides its own endpoint because it's a multipart upload.
+ *
+ * Emptied notes/link go out as `null`, not omitted: the PATCH schema treats null
+ * as "clear this field", so leaving them out would make them impossible to empty
+ * once set.
  */
 const EditOptionForm = ({ option, onDone }) => {
   const dispatch = useDispatch();
-  const [title, setTitle] = useState(option.title ?? '');
-  const [notes, setNotes] = useState(option.notes ?? '');
-  const [link, setLink] = useState(option.link ?? '');
+  const { boardId } = useParams();
+  const [fields, setFields] = useState({
+    title: option.title ?? '',
+    notes: option.notes ?? '',
+    link: option.link ?? '',
+    location: option.location ?? null,
+  });
+  const [locationTouched, setLocationTouched] = useState(false);
+  const [photo, setPhoto] = useState(null);
+  const [dropPhoto, setDropPhoto] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const {
     blockError,
@@ -35,6 +49,30 @@ const EditOptionForm = ({ option, onDone }) => {
     setBlockError,
     clearBlockError,
   } = useFormErrors();
+
+  const { title, notes, link, location } = fields;
+
+  const handleChange = (name, value) => {
+    if (name === 'location') {
+      setLocationTouched(true);
+      setFields((prev) => ({ ...prev, location: value }));
+      return;
+    }
+    setFields((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handlePhotoChange = (file) => {
+    setPhoto(file);
+    // Choosing a replacement supersedes removing the current one.
+    if (file) setDropPhoto(false);
+  };
+
+  // Removal is an intent applied on save, exactly like the place: choosing one
+  // and then cancelling has to leave the option untouched.
+  const handleRemovePhoto = () => {
+    setDropPhoto(true);
+    setPhoto(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,25 +84,44 @@ const EditOptionForm = ({ option, onDone }) => {
       return;
     }
 
+    const patch = {
+      title: title.trim(),
+      notes: notes.trim() || null,
+      link: link.trim() || null,
+      ...(locationTouched ? { location: toLocationPayload(location) } : {}),
+    };
+
     setSubmitting(true);
 
     try {
-      const result = await updateOption(option.id, {
-        title: title.trim(),
-        notes: notes.trim() || null,
-        link: link.trim() || null,
-      });
+      let result = await updateOption(option.id, patch);
 
-      dispatch(
-        updateOptionDetails({
-          optionId: option.id,
-          changes: {
-            title: result.option.title,
-            notes: result.option.notes,
-            link: result.option.link,
-          },
-        }),
-      );
+      if (photo) {
+        result = await uploadOptionPhoto(option.id, photo);
+      } else if (dropPhoto) {
+        result = await deleteOptionPhoto(option.id);
+      }
+
+      // The PATCH and photo endpoints answer with the raw doc — locationId
+      // unpopulated, no signed URL — so a change to either of those refetches
+      // the list, which carries the enriched shape the card and its map pin
+      // need. Text-only edits patch in place and skip the request.
+      if (photo || dropPhoto || locationTouched) {
+        const refreshed = await fetchOptions(boardId);
+        dispatch(setOptions(refreshed.options));
+      } else {
+        dispatch(
+          updateOptionDetails({
+            optionId: option.id,
+            changes: {
+              title: result.option.title,
+              notes: result.option.notes,
+              link: result.option.link,
+            },
+          }),
+        );
+      }
+
       onDone();
     } catch (err) {
       const mapped = mapValidationIssues(err.issues);
@@ -97,63 +154,16 @@ const EditOptionForm = ({ option, onDone }) => {
 
       <ErrorBanner message={blockError} onDismiss={clearBlockError} />
 
-      <div className="space-y-4">
-        <div>
-          <label
-            htmlFor={`option-title-${option.id}`}
-            className="mb-1.5 block font-sans text-sm font-medium text-text-muted"
-          >
-            Title <span className="text-accent">*</span>
-          </label>
-          <input
-            id={`option-title-${option.id}`}
-            type="text"
-            required
-            maxLength={200}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className={inputClasses}
-            autoFocus
-          />
-          <FieldError message={fieldErrors.title} />
-        </div>
-
-        <div>
-          <label
-            htmlFor={`option-notes-${option.id}`}
-            className="mb-1.5 block font-sans text-sm font-medium text-text-muted"
-          >
-            Notes
-          </label>
-          <textarea
-            id={`option-notes-${option.id}`}
-            rows={3}
-            maxLength={2000}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className={`${inputClasses} resize-y`}
-          />
-        </div>
-
-        <div>
-          <label
-            htmlFor={`option-link-${option.id}`}
-            className="mb-1.5 block font-sans text-sm font-medium text-text-muted"
-          >
-            Link
-          </label>
-          <input
-            id={`option-link-${option.id}`}
-            type="url"
-            maxLength={500}
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            placeholder="https://"
-            className={inputClasses}
-          />
-          <FieldError message={fieldErrors.link} />
-        </div>
-      </div>
+      <OptionFields
+        idPrefix={`option-${option.id}`}
+        values={fields}
+        onChange={handleChange}
+        errors={fieldErrors}
+        photo={photo}
+        onPhotoChange={handlePhotoChange}
+        photoPreviewUrl={dropPhoto ? null : option.photoUrl}
+        onRemovePhoto={handleRemovePhoto}
+      />
 
       <button
         type="submit"

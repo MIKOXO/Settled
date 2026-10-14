@@ -19,3 +19,5 @@ export const uploadOptionPhoto = (optionId, file) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
+
+export const deleteOptionPhoto = (optionId) => api.delete(`/options/${optionId}/photo`);

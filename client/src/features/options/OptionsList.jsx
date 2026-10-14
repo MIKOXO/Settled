@@ -1,11 +1,12 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { ArrowDownWideNarrow, ChevronDown, ExternalLink, Lightbulb, MapPin, MessageSquare, Trophy } from 'lucide-react';
+import { ArrowDownWideNarrow, ChevronDown, ExternalLink, Lightbulb, MapPin, Maximize2, MessageSquare, Trophy } from 'lucide-react';
 import VoteButtons from '../voting/VoteButtons';
 import CommentThread from '../threads/CommentThread';
 import EditOptionForm from './EditOptionForm';
 import OptionActions from './OptionActions';
+import PhotoLightbox from '../../components/PhotoLightbox';
 import { deleteOption } from '../../services/options';
 import { removeOption } from '../../store/boardSlice';
 import initialsOf from '../../utils/initials';
@@ -41,7 +42,7 @@ const ProposerTag = ({ name }) => (
   </span>
 );
 
-const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
+const OptionCard = ({ option, onViewOnMap, onViewPhoto, isTopLiked, enterDelay = 0 }) => {
   const {
     title,
     notes,
@@ -64,11 +65,11 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
   const proposerName =
     option.createdBy === session?.id ? 'You' : (proposer?.displayName ?? 'Someone');
 
-  // Mirrors the server's rule (utils/optionGuard.js): the owner can change
-  // anyone's option, and so can the person who proposed it. Everyone else sees
-  // the card read-only — the controls are hidden rather than shown-and-failing,
-  // but the server still decides.
-  const canManage = session?.role === 'owner' || session?.id === option.createdBy;
+  // Mirrors the server's rule (utils/optionGuard.js): only the person who
+  // proposed an option can edit or remove it — the owner included. Everyone else
+  // sees the card read-only, so the controls are hidden rather than
+  // shown-and-failing, but the server still decides.
+  const canManage = Boolean(session?.id) && option.createdBy === session?.id;
 
   const handleDelete = () => deleteOption(option.id).then(() => dispatch(removeOption(option.id)));
 
@@ -149,11 +150,28 @@ const OptionCard = ({ option, onViewOnMap, isTopLiked, enterDelay = 0 }) => {
           {(photoUrl || notes || link || location) && (
             <div className="mt-3">
               {photoUrl && (
-                <img
-                  src={photoUrl}
-                  alt=""
-                  className="mb-3 h-40 w-full rounded-btn border border-border object-cover sm:h-48"
-                />
+                // A real button, not a click handler on the image: keyboard
+                // users get it for free, and the affordance is announced.
+                <button
+                  type="button"
+                  onClick={onViewPhoto}
+                  aria-label={`View photo of ${title}`}
+                  className="group relative mb-3 block w-full overflow-hidden rounded-btn border border-border focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+                >
+                  <img
+                    src={photoUrl}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    className="h-40 w-full object-cover transition-transform duration-300 group-hover:scale-[1.03] group-focus-visible:scale-[1.03] sm:h-48"
+                  />
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background/0 transition-colors duration-300 group-hover:bg-background/40 group-focus-visible:bg-background/40">
+                    <span className="flex items-center gap-1.5 rounded-btn bg-background/80 px-2.5 py-1.5 font-sans text-xs font-medium text-text-primary opacity-0 backdrop-blur-sm transition-opacity duration-300 group-hover:opacity-100 group-focus-visible:opacity-100">
+                      <Maximize2 className="h-3.5 w-3.5" />
+                      View photo
+                    </span>
+                  </span>
+                </button>
               )}
 
               {notes && (
@@ -269,6 +287,28 @@ const OptionsList = ({ onViewOnMap }) => {
     [options],
   );
 
+  // One viewer for the whole list rather than one per card: a second overlay
+  // opened over the first is the case this shape exists to prevent. Held by
+  // option id, not index, so a vote re-ranking the list under an open viewer
+  // can't silently switch the photo on screen.
+  const [viewingId, setViewingId] = useState(null);
+
+  const photos = useMemo(
+    () =>
+      ranked
+        .filter((o) => o.photoUrl)
+        .map((o) => ({ id: o.id, src: o.photoUrl, caption: o.title })),
+    [ranked],
+  );
+
+  const viewingIndex = viewingId ? photos.findIndex((p) => p.id === viewingId) : -1;
+
+  // The viewed option can be removed (by this client or over the socket) while
+  // its photo is open.
+  useEffect(() => {
+    if (viewingId && viewingIndex < 0) setViewingId(null);
+  }, [viewingId, viewingIndex]);
+
   // One leader or none: the tag/border/glow belong to the single option
   // with the most likes. The server's isLeading flags every tied option,
   // which on a fresh board (all zeros) meant *every* card read "Leading" —
@@ -315,11 +355,20 @@ const OptionsList = ({ onViewOnMap }) => {
             key={option.id}
             option={option}
             onViewOnMap={onViewOnMap}
+            onViewPhoto={() => setViewingId(option.id)}
             isTopLiked={option.id === topLikesId}
             enterDelay={mountIds.has(option.id) ? Math.min(index * 0.05, 0.4) : 0}
           />
         ))}
       </div>
+
+      <PhotoLightbox
+        photos={photos}
+        index={viewingIndex}
+        caption={photos[viewingIndex]?.caption}
+        onIndexChange={(next) => setViewingId(photos[next]?.id ?? null)}
+        onClose={() => setViewingId(null)}
+      />
     </section>
   );
 };
