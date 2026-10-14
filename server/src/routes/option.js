@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import mongoose from 'mongoose';
 import multer from 'multer';
 
-import { createAppError } from '../utils/AppError.js';
+import { validateObjectId } from '../middleware/validateObjectId.js';
 import { requireAuth } from '../middleware/auth.js';
 import { requireOptionBoardMembership } from '../middleware/requireOptionBoardMembership.js';
 import { requireCanCreateOption } from '../middleware/requireCanCreateOption.js';
@@ -14,24 +13,42 @@ import * as optionController from '../controllers/optionController.js';
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-const validateBoardId = (req, _res, next) => {
-  if (!mongoose.isValidObjectId(req.params.boardId)) {
-    return next(createAppError('Invalid board id', 400));
-  }
-  return next();
-};
+const boardId = validateObjectId('boardId', 'board id');
+const optionId = validateObjectId('id', 'option id');
 
-const validateOptionId = (req, _res, next) => {
-  if (!mongoose.isValidObjectId(req.params.id)) {
-    return next(createAppError('Invalid option id', 400));
-  }
-  return next();
-};
-
-router.get('/boards/:boardId/options', requireAuth, validateBoardId, optionController.listOptionsByBoard);
-router.post('/boards/:boardId/options', requireAuth, validateBoardId, requireCanCreateOption, optionController.createOption);
-router.post('/options/:id/photo', requireAuth, validateOptionId, requireOptionBoardMembership, requireCanAttachPhoto, upload.single('photo'), resolvePhotoExtension, optionController.storeOptionPhoto);
-router.patch('/options/:id', requireAuth, validateOptionId, requireOptionBoardMembership, requireCanManageOption, optionController.updateOption);
-router.delete('/options/:id', requireAuth, validateOptionId, requireOptionBoardMembership, requireCanManageOption, optionController.deleteOption);
+router.get('/boards/:boardId/options', requireAuth, boardId, optionController.listOptionsByBoard);
+router.post(
+  '/boards/:boardId/options',
+  requireAuth,
+  boardId,
+  requireCanCreateOption,
+  optionController.createOption,
+);
+router.post(
+  '/options/:id/photo',
+  requireAuth,
+  optionId,
+  requireOptionBoardMembership,
+  requireCanAttachPhoto,
+  upload.single('photo'),
+  resolvePhotoExtension,
+  optionController.storeOptionPhoto,
+);
+router.patch(
+  '/options/:id',
+  requireAuth,
+  optionId,
+  requireOptionBoardMembership,
+  requireCanManageOption,
+  optionController.updateOption,
+);
+router.delete(
+  '/options/:id',
+  requireAuth,
+  optionId,
+  requireOptionBoardMembership,
+  requireCanManageOption,
+  optionController.deleteOption,
+);
 
 export default router;
