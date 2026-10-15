@@ -4,18 +4,7 @@ import { MapPin, UsersRound, X } from 'lucide-react';
 import { removeParticipant } from '../../services/board';
 import { setParticipants } from '../../store/boardSlice';
 import ConfirmButton from '../../components/ConfirmButton';
-import initialsOf from '../../utils/initials';
-
-const RoleBadge = ({ role }) =>
-  role === 'owner' ? (
-    <span className="shrink-0 rounded-btn bg-accent-secondary/15 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-accent-secondary">
-      Owner
-    </span>
-  ) : (
-    <span className="shrink-0 rounded-btn bg-surface-2 px-1.5 py-0.5 font-sans text-[11px] text-text-muted">
-      Member
-    </span>
-  );
+import { Avatar, RoleBadge, YouChip } from '../../components/Identity';
 
 /**
  * The People tab's content. Everyone on the board can see this list — only the
@@ -80,11 +69,7 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
                   {p.displayName}
                 </p>
                 <RoleBadge role={p.role} />
-                {isMe && (
-                  <span className="shrink-0 rounded-btn bg-accent/15 px-1.5 py-0.5 font-sans text-[11px] font-semibold text-accent">
-                    You
-                  </span>
-                )}
+                {isMe && <YouChip />}
               </div>
 
               <p
@@ -110,16 +95,7 @@ const ParticipantList = ({ boardId, onViewOnMap }) => {
               }}
               className="flex items-center gap-3 rounded-btn px-2 py-2 transition-colors duration-150 hover:bg-surface-2/60"
             >
-              <span
-                aria-hidden="true"
-                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full font-mono text-[11px] ${
-                  p.role === 'owner'
-                    ? 'bg-accent-secondary/15 text-accent-secondary ring-1 ring-accent-secondary/40'
-                    : 'bg-surface-2 text-text-muted'
-                }`}
-              >
-                {initialsOf(p.displayName)}
-              </span>
+              <Avatar name={p.displayName} role={p.role} size="md" />
 
               {/* The whole identity block is the tap target when there's a pin
                   to look at; without one it stays inert so the row reads as

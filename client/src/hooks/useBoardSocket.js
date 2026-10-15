@@ -33,12 +33,16 @@ const useBoardSocket = (boardId) => {
       dispatch(applyVoteUpdate(payload));
     };
 
+    // Roots and replies share one event — `parentId` on the comment (and the
+    // root's `replyCount` beside it) says where it lands, and the reducer routes
+    // it, so a reply needs no second subscription.
     const handleCommentAdded = (payload) => {
       dispatch(
         addComment({
           optionId: payload.optionId,
           comment: payload.comment,
           commentCount: payload.commentCount,
+          replyCount: payload.replyCount,
         }),
       );
     };

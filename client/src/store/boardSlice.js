@@ -118,6 +118,10 @@ const boardSlice = createSlice({
         hasMore,
         status,
         nextCursor: nextCursor ?? null,
+        // Already-loaded reply lists survive a refresh of the root list: they
+        // are fetched per comment on demand, and dropping them would collapse
+        // a thread the user has open underneath them.
+        replies: state.comments[optionId]?.replies ?? {},
       };
     },
     appendComments: (state, action) => {
@@ -127,6 +131,7 @@ const boardSlice = createSlice({
         hasMore: false,
         status: 'idle',
         nextCursor: null,
+        replies: {},
       };
       thread.items.push(...items);
       thread.hasMore = hasMore;
@@ -134,19 +139,76 @@ const boardSlice = createSlice({
       thread.status = 'succeeded';
       state.comments[optionId] = thread;
     },
+    setReplies: (state, action) => {
+      const { optionId, commentId, items, hasMore, status = 'succeeded', nextCursor } =
+        action.payload;
+      const thread = state.comments[optionId];
+      if (!thread) return;
+
+      // A reply can land over the socket while this page is still in flight.
+      // Replacing the list outright would drop a message the user has already
+      // seen, so the response is merged with whatever arrived meanwhile — the
+      // id check also covers the poster reading back their own echo.
+      const seen = new Set(items.map((reply) => reply.id));
+      const late = (thread.replies[commentId]?.items ?? []).filter((reply) => !seen.has(reply.id));
+      const merged = [...items, ...late].sort(
+        (a, b) => new Date(a.createdAt) - new Date(b.createdAt),
+      );
+
+      thread.replies[commentId] = {
+        items: merged,
+        hasMore,
+        status,
+        nextCursor: nextCursor ?? null,
+      };
+    },
+    appendReplies: (state, action) => {
+      const { optionId, commentId, items, hasMore, nextCursor } = action.payload;
+      const thread = state.comments[optionId];
+      const page = thread?.replies[commentId];
+      if (!page) return;
+      page.items.push(...items);
+      page.hasMore = hasMore;
+      page.nextCursor = nextCursor ?? null;
+      page.status = 'succeeded';
+    },
+    /**
+     * One entry point for every comment, root or reply — the POST response and
+     * the `comment:added` broadcast carry the same shape, and `parentId` says
+     * where the comment lands.
+     *
+     * `replyCount` is the ROOT's count after this comment (the server sends the
+     * parent's number, since the posted comment's own is always 0), so it is
+     * applied to the parent row rather than stored on the reply.
+     */
     addComment: (state, action) => {
-      const { optionId, comment, commentCount } = action.payload;
+      const { optionId, comment, commentCount, replyCount } = action.payload;
       const thread = state.comments[optionId];
 
-      if (thread) {
-        const exists = thread.items.some((item) => item.id === comment.id);
-        if (!exists) thread.items.unshift(comment);
+      if (comment.parentId) {
+        const root = thread?.items.find((item) => item.id === comment.parentId);
+        if (root && replyCount !== undefined) root.replyCount = replyCount;
+
+        const page = thread?.replies[comment.parentId];
+        // Replies read oldest-first, so a new one lands at the end — and the
+        // poster receives their own broadcast back, hence the id check.
+        if (page && !page.items.some((item) => item.id === comment.id)) {
+          page.items.push(comment);
+        }
+      } else if (thread) {
+        if (!thread.items.some((item) => item.id === comment.id)) {
+          thread.items.unshift({ ...comment, replyCount: comment.replyCount ?? 0 });
+        }
       } else {
+        // A comment arriving for a thread nobody here has opened. It is held in
+        // the option's count and picked up by the first fetch; creating an entry
+        // would render a parent-less reply the UI can't place.
         state.comments[optionId] = {
-          items: [comment],
+          items: [],
           hasMore: false,
           status: 'idle',
           nextCursor: null,
+          replies: {},
         };
       }
 
@@ -243,6 +305,8 @@ export const {
   applyVoteUpdate,
   setComments,
   appendComments,
+  setReplies,
+  appendReplies,
   addComment,
   setParticipants,
   addParticipant,
