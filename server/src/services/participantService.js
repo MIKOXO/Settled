@@ -4,6 +4,8 @@ import { createAppError } from '../utils/AppError.js';
 import { verifyToken, signSessionToken, signRecoveryToken } from '../utils/tokens.js';
 import { sendEmail } from '../utils/email.js';
 import { buildRecoveryEmail } from '../utils/emailTemplates.js';
+import { serializeRosterEntry } from '../utils/serialize.js';
+import { emitParticipantAdded } from '../sockets/boardEmitter.js';
 import { env } from '../config/env.js';
 
 const INACTIVITY_THRESHOLD_MS = 7 * 24 * 60 * 60 * 1000;
@@ -67,6 +69,13 @@ export const joinBoard = async (inviteToken, input, existingParticipantId = null
     role: 'member',
     lastActiveAt: new Date(),
   });
+
+  // Announced only after the write lands, so the socket reports confirmed state
+  // rather than intent (invariant 5). A re-join returns above without emitting —
+  // nothing changed for anyone else to see. The joiner isn't in the board room
+  // yet (their socket connects once the board page hydrates), so this never
+  // echoes back to the person who just joined.
+  emitParticipantAdded(board._id, serializeRosterEntry(participant));
 
   return {
     participant,
