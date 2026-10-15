@@ -159,6 +159,14 @@ const boardSlice = createSlice({
     setParticipants: (state, action) => {
       state.participants = action.payload;
     },
+    addParticipant: (state, action) => {
+      // The joiner isn't in the board room when the server broadcasts, so they
+      // normally won't hear their own echo — they hydrate from the REST fetch
+      // instead. A page load that races a join can still land one behind the
+      // snapshot, so dedupe by id the way `addOption` and `addComment` do.
+      if (state.participants.some((p) => p.id === action.payload.id)) return;
+      state.participants.push(action.payload);
+    },
     setAvailability: (state, action) => {
       state.availability = action.payload;
     },
@@ -237,6 +245,7 @@ export const {
   appendComments,
   addComment,
   setParticipants,
+  addParticipant,
   setAvailability,
   upsertAvailability,
   removeAvailability,

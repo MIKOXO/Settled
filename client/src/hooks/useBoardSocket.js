@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { getSocket } from '../services/socket';
 import {
   addComment,
+  addParticipant,
   applyOptionUpsert,
   applyVoteUpdate,
   removeAvailability,
@@ -87,6 +88,14 @@ const useBoardSocket = (boardId) => {
       dispatch(setBoard(payload));
     };
 
+    // Nobody in the room asked for a join, so everyone already looking at the
+    // roster has to be told — the People list, the tab's count badge, and the
+    // Dates tab's name tags all read this one array, so one dispatch moves all
+    // three. The person who just joined hydrates from their own REST fetch.
+    const handleParticipantAdded = (payload) => {
+      dispatch(addParticipant(payload));
+    };
+
     const handleParticipantRemoved = (payload) => {
       if (sessionId && payload.participantId === sessionId) {
         dispatch(clearSession());
@@ -105,6 +114,7 @@ const useBoardSocket = (boardId) => {
     socket.on('location:removed', handleLocationRemoved);
     socket.on('board:decided', handleBoardDecided);
     socket.on('board:updated', handleBoardUpdated);
+    socket.on('participant:added', handleParticipantAdded);
     socket.on('participant:removed', handleParticipantRemoved);
 
     return () => {
@@ -119,6 +129,7 @@ const useBoardSocket = (boardId) => {
       socket.off('location:removed', handleLocationRemoved);
       socket.off('board:decided', handleBoardDecided);
       socket.off('board:updated', handleBoardUpdated);
+      socket.off('participant:added', handleParticipantAdded);
       socket.off('participant:removed', handleParticipantRemoved);
     };
   }, [boardId, dispatch, navigate, sessionId]);
