@@ -1,12 +1,10 @@
-import * as cookie from 'cookie';
-
 import { verifyToken } from '../utils/tokens.js';
-import { SESSION_COOKIE } from '../utils/session.js';
 import { touchLastActive } from '../services/participantService.js';
+import { Participant } from '../models/Participant.js';
+import { createAppError } from '../utils/AppError.js';
 
-export const socketAuth = (socket, next) => {
-  const rawCookie = socket.handshake.headers.cookie;
-  const token = rawCookie ? cookie.parseCookie(rawCookie)[SESSION_COOKIE] : null;
+export const socketAuth = async (socket, next) => {
+  const token = socket.handshake?.auth?.token ?? null;
 
   if (!token) {
     return next(new Error('Authentication required'));
@@ -19,16 +17,25 @@ export const socketAuth = (socket, next) => {
     return next(new Error('Invalid or expired token'));
   }
 
-  if (payload.type !== 'session') {
+  if (payload.type !== 'socket') {
     return next(new Error('Authentication required'));
   }
 
-  socket.participant = {
-    id: payload.sub,
-    boardId: payload.boardId,
-    role: payload.role,
-  };
+  try {
+    const participant = await Participant.findById(payload.sub).lean();
+    if (!participant) {
+      return next(new Error('Authentication required'));
+    }
 
-  touchLastActive(payload.sub);
-  return next();
+    socket.participant = {
+      id: participant._id.toString(),
+      boardId: participant.boardId?.toString() ?? null,
+      role: participant.role,
+    };
+
+    touchLastActive(payload.sub);
+    return next();
+  } catch {
+    return next(new Error('Authentication required'));
+  }
 };

@@ -19,10 +19,20 @@ const getBoardOr404 = async (boardId) => {
 };
 
 /** Fire-and-forget presence ping; a failed write must never fail the request. */
+import { signSocketToken } from '../utils/tokens.js';
+
 export const touchLastActive = (participantId) => {
   Participant.findByIdAndUpdate(participantId, { lastActiveAt: new Date() })
     .exec()
     .catch(() => {});
+};
+
+export const getSocketToken = async (participantId) => {
+  const participant = await Participant.findById(participantId).lean();
+  if (!participant) {
+    throw createAppError('Participant not found', 404);
+  }
+  return signSocketToken(participantId);
 };
 
 export const getMe = async (participantId) => {

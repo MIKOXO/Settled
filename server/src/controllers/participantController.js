@@ -34,6 +34,11 @@ export const getMe = catchAsync(async (req, res) => {
   });
 });
 
+export const getSocketToken = catchAsync(async (req, res) => {
+  const token = await participantService.getSocketToken(req.participant.id);
+  return ok(res, { token });
+});
+
 export const joinBoard = catchAsync(async (req, res) => {
   const input = joinBoardSchema.parse(req.body);
 

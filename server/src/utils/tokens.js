@@ -2,7 +2,7 @@ import jwt from 'jsonwebtoken';
 import { env } from '../config/env.js';
 import { createAppError } from './AppError.js';
 
-const EXPIRY = { session: '30d', recovery: '15m', welcome: '7d' };
+const EXPIRY = { session: '30d', recovery: '15m', welcome: '7d', socket: '60s' };
 
 const sign = (payload, expiresIn) => jwt.sign(payload, env.JWT_SECRET, { expiresIn });
 
@@ -14,6 +14,9 @@ export const signRecoveryToken = (participantId) =>
 
 export const signBoardWelcomeToken = (participantId) =>
   sign({ sub: participantId, type: 'welcome' }, EXPIRY.welcome);
+
+export const signSocketToken = (participantId) =>
+  sign({ sub: participantId, type: 'socket' }, EXPIRY.socket);
 
 export const verifyToken = (token) => {
   try {

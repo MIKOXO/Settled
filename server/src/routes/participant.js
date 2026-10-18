@@ -7,6 +7,7 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 
 router.get('/participants/me', requireAuth, participantController.getMe);
+router.get('/participants/socket-token', requireAuth, participantController.getSocketToken);
 router.post('/boards/:inviteToken/join', participantController.joinBoard);
 router.post('/participants/recover-request', participantController.recoverRequest);
 router.post('/participants/recover', participantController.recover);
