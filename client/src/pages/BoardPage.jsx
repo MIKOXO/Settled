@@ -5,18 +5,20 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Loader2 } from 'lucide-react';
 import useSocket from '../hooks/useSocket';
 import useBoardSocket from '../hooks/useBoardSocket';
-import { initSocket } from '../services/socket';
+import { initSocket, getSocket } from '../services/socket';
 import { fetchBoard, getMe } from '../services/board';
 import { fetchOptions } from '../services/options';
 import { fetchAvailability } from '../services/availability';
 import { fetchParticipants } from '../services/participants';
 import { fetchLocations } from '../services/location';
+import { fetchComments } from '../services/comments';
 import {
   setBoard,
   setOptions,
   setAvailability,
   setParticipants,
   setLocations,
+  setComments,
   setStatus,
   resetBoard,
 } from '../store/boardSlice';
@@ -35,11 +37,13 @@ const BoardPage = () => {
   const { boardId } = useParams();
   const dispatch = useDispatch();
   const status = useSelector((state) => state.board.status);
+  const commentsByOption = useSelector((state) => state.board.comments);
   const [activeTab, setActiveTab] = useState('options');
   const [optionPrefill, setOptionPrefill] = useState(null);
   const prefillNonce = useRef(0);
   const [mapFocus, setMapFocus] = useState(null);
   const focusNonce = useRef(0);
+  const isFirstConnectRef = useRef(true);
   const reduceMotion = useReducedMotion();
 
   // Cross-tab handoff: the map tab proposes a place, the options tab receives
@@ -69,6 +73,60 @@ const BoardPage = () => {
 
   useSocket();
   useBoardSocket(boardId);
+
+
+  useEffect(() => {
+    const socket = getSocket();
+    if (!socket) return undefined;
+
+    const handleConnect = () => {
+      if (isFirstConnectRef.current) {
+        isFirstConnectRef.current = false;
+        return;
+      }
+      const refresh = async () => {
+        try {
+          const [board, options, availabilityRes, participantsRes, locationsRes] = await Promise.all([
+            fetchBoard(boardId),
+            fetchOptions(boardId),
+            fetchAvailability(boardId),
+            fetchParticipants(boardId),
+            fetchLocations(boardId),
+          ]);
+          dispatch(setBoard(board));
+          dispatch(setOptions(options.options));
+          dispatch(setAvailability(availabilityRes.slots));
+          dispatch(setParticipants(participantsRes.participants));
+          dispatch(setLocations(locationsRes));
+          const openOptionIds = Object.keys(commentsByOption);
+          await Promise.all(
+            openOptionIds.map((oid) =>
+              fetchComments(oid)
+                .then((data) =>
+                  dispatch(
+                    setComments({
+                      optionId: oid,
+                      items: data.comments,
+                      hasMore: Boolean(data.nextCursor),
+                      nextCursor: data.nextCursor ?? null,
+                    }),
+                  ),
+                )
+                .catch(() => undefined),
+            ),
+          );
+        } catch {
+          // ignore
+        }
+      };
+      refresh();
+    };
+
+    socket.on('connect', handleConnect);
+    return () => {
+      socket.off('connect', handleConnect);
+    };
+  }, [boardId, dispatch, commentsByOption]);
 
   useEffect(() => {
     let cancelled = false;

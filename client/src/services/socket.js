@@ -1,4 +1,5 @@
 import { io } from 'socket.io-client';
+import api from './api';
 
 let socket = null;
 
@@ -12,7 +13,12 @@ let socket = null;
 export const initSocket = () => {
   if (!socket) {
     socket = io(import.meta.env.VITE_SOCKET_URL, {
-      withCredentials: true,
+      auth: (cb) => {
+        api
+          .get('/participants/socket-token')
+          .then((data) => cb({ token: data?.token ?? null }))
+          .catch(() => cb({ token: null }));
+      },
       autoConnect: false,
     });
   }
