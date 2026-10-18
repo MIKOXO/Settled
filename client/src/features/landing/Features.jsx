@@ -568,12 +568,9 @@ const Features = () => {
           viewport={{ once: true, amount: 0.6 }}
           transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className="inline-flex items-center gap-2 rounded-btn bg-surface px-3 py-1">
-            <span className="h-2 w-2 rounded-full bg-accent" />
-            <span className="font-sans text-xs font-semibold uppercase tracking-wider text-text-muted">
-              What is on the board
-            </span>
-          </div>
+          <span className="font-sans text-xs font-semibold uppercase tracking-wider text-accent">
+            What is on the board
+          </span>
 
           <h2 className="max-w-2xl font-heading text-3xl font-bold leading-tight text-text-primary sm:text-4xl lg:text-5xl">
             Everything your group needs. <br className="hidden sm:inline" />

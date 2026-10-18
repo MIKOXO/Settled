@@ -28,6 +28,41 @@ const STEPS = [
   },
 ];
 
+/* Every step draws its own piece of the track, starting at its own node. The
+   negative right offsets match the grid gap (gap-8 at md, gap-12 at lg), so
+   every segment but the last lands on the left edge of the following node. The
+   final step carries the tail of the track out to the right edge, which is why
+   `03` reads as part of the line instead of hanging off the end of it. */
+const segmentTone = (index, total) => {
+  if (index === total - 1) return 'from-accent-secondary to-accent-secondary';
+  if (index === total - 2) return 'from-accent to-accent-secondary';
+  return 'from-accent to-accent';
+};
+
+const StepConnector = ({ index, isLastStep, reduceMotion }) => (
+  <div
+    aria-hidden="true"
+    className={`pointer-events-none absolute left-3 top-1/2 hidden h-px -translate-y-1/2 bg-border md:block ${
+      isLastStep ? 'right-0' : '-right-8 lg:-right-12'
+    }`}
+  >
+    <motion.div
+      className={`absolute inset-0 origin-left bg-gradient-to-r ${segmentTone(
+        index,
+        STEPS.length
+      )}`}
+      initial={reduceMotion ? false : { scaleX: 0 }}
+      whileInView={{ scaleX: 1 }}
+      viewport={{ once: true, amount: 0.4 }}
+      transition={{
+        duration: 0.6,
+        delay: reduceMotion ? 0 : 0.3 + index * 0.12,
+        ease: [0.22, 1, 0.36, 1],
+      }}
+    />
+  </div>
+);
+
 const HowItWorks = () => {
   const reduceMotion = useReducedMotion();
   const [copied, setCopied] = useState(false);
@@ -74,19 +109,7 @@ const HowItWorks = () => {
       </div>
 
       {/* Desktop Horizontal Process Pipeline (No cards, No icon containers) */}
-      <div className="relative mt-16 sm:mt-20">
-        {/* Connecting Horizontal Line (Desktop) */}
-        <div className="hidden md:block">
-          <div className="absolute top-3 left-6 right-6 h-px bg-border" />
-          <motion.div
-            className="absolute top-3 left-6 right-6 h-px bg-gradient-to-r from-accent via-accent to-accent-secondary origin-left"
-            initial={reduceMotion ? false : { scaleX: 0 }}
-            whileInView={{ scaleX: 1 }}
-            viewport={{ once: true, amount: 0.2 }}
-            transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          />
-        </div>
-
+      <div className="mt-16 sm:mt-20">
         {/* Steps Grid */}
         <div className="grid grid-cols-1 gap-12 md:grid-cols-3 md:gap-8 lg:gap-12">
           {STEPS.map((step, index) => {
@@ -107,7 +130,7 @@ const HowItWorks = () => {
               >
                 <div>
                   {/* Step Top Anchor: Node dot + Numeral */}
-                  <div className="flex items-center justify-between">
+                  <div className="relative flex items-center justify-between">
                     {/* Track Node Indicator */}
                     <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full border-2 border-border bg-background transition-colors duration-300 group-hover:border-accent">
                       <span
@@ -118,9 +141,15 @@ const HowItWorks = () => {
                     </div>
 
                     {/* Prominent Serif/Mono Step Numeral */}
-                    <span className="font-mono text-3xl font-bold tracking-tight text-text-muted/30 transition-colors duration-300 group-hover:text-text-primary sm:text-4xl">
+                    <span className="relative z-10 bg-background pl-3 font-mono text-3xl font-bold tracking-tight text-text-muted/30 transition-colors duration-300 group-hover:text-text-primary sm:text-4xl">
                       {step.n}
                     </span>
+
+                    <StepConnector
+                      index={index}
+                      isLastStep={isLast}
+                      reduceMotion={reduceMotion}
+                    />
                   </div>
 
                   {/* Step Title & Subtitle */}
