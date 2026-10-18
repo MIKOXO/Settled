@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://settled-aee9.onrender.com/"
+      "destination": "https://settled-aee9.onrender.com/api/:path*"
     },
     {
       "source": "/(.*)",
